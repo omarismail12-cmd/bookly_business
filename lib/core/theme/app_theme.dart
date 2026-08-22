@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const primary = Color(0xFF8B5CF6);
@@ -16,7 +17,11 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
-      fontFamily: 'Inter',
+      // Inter for Latin script; Arabic-script glyphs (no coverage in Inter)
+      // automatically fall back to Noto Sans Arabic per the spec's
+      // typography requirement (slide 10).
+      fontFamily: GoogleFonts.inter().fontFamily,
+      fontFamilyFallback: [GoogleFonts.notoSansArabic().fontFamily!],
       visualDensity: VisualDensity.adaptivePlatformDensity,
       appBarTheme: const AppBarTheme(
         centerTitle: false,

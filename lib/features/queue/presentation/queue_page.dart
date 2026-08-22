@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/security/org_context.dart';
+import '../../../../shared/widgets/async_state.dart';
 
 class QueuePage extends ConsumerStatefulWidget {
   const QueuePage({super.key});
@@ -162,11 +164,13 @@ class _QueuePageState extends ConsumerState<QueuePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
     floatingActionButton: FloatingActionButton.extended(
       onPressed: loading ? null : addWalkIn,
       icon: const Icon(Icons.person_add),
-      label: const Text('Walk-in'),
+      label: Text(l10n.queueAddWalkIn),
     ),
     body: loading
         ? const Center(child: CircularProgressIndicator())
@@ -176,15 +180,15 @@ class _QueuePageState extends ConsumerState<QueuePage> {
               padding: const EdgeInsets.all(24),
               children: [
                 Text(
-                  'Walk-in Queue',
+                  l10n.pageTitleQueue,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
                 if (rows.isEmpty)
-                  const Card(
+                  Card(
                     child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('No customers are waiting.'),
+                      padding: const EdgeInsets.all(24),
+                      child: EmptyState(message: l10n.queueEmpty),
                     ),
                   ),
                 ...rows.map((row) {
@@ -224,4 +228,5 @@ class _QueuePageState extends ConsumerState<QueuePage> {
             ),
           ),
   );
+  }
 }

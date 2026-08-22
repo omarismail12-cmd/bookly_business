@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../../shared/validators/validators.dart';
 import 'signup_page.dart';
 
@@ -98,6 +99,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -133,12 +135,12 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    validator: Validators.email,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
+                    validator: (v) => Validators.email(v, l10n),
+                    decoration: InputDecoration(
+                      labelText: l10n.loginEmail,
                       hintText: 'you@example.com',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
 
@@ -148,14 +150,14 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
-                    validator: Validators.password,
+                    validator: (v) => Validators.password(v, l10n),
                     onFieldSubmitted: (_) {
                       if (!_loading) {
                         _login();
                       }
                     },
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: l10n.loginPassword,
                       prefixIcon: const Icon(Icons.lock_outline),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
@@ -185,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                               height: 22,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Login'),
+                          : Text(l10n.loginSubmit),
                     ),
                   ),
 
@@ -202,7 +204,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             );
                           },
-                    child: const Text("Don't have an account? Sign up"),
+                    child: Text(l10n.loginNoAccount),
                   ),
                 ],
               ),

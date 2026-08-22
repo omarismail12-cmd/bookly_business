@@ -2,8 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
+
+/// Maps the UI's segment filter keys to the keys understood by the
+/// customer_segment() RPC (supabase/migrations/0003, 0010), so a campaign's
+/// stored segment can later be expanded server-side via
+/// generate_campaign_recipients().
+const Map<String, String> _segmentToDbKey = {
+  'all': 'all',
+  'vip': 'vip',
+  'inactive': 'inactive_30',
+  'no_show': 'frequent_no_show',
+  'first': 'first_visit',
+  'birthday': 'birthday_month',
+};
 
 class CrmPage extends ConsumerStatefulWidget {
   const CrmPage({super.key});
@@ -14,9 +28,11 @@ class CrmPage extends ConsumerStatefulWidget {
 
 class _CrmPageState extends ConsumerState<CrmPage> {
   List<Map<String, dynamic>> customers = [];
+  List<Map<String, dynamic>> campaigns = [];
   Map<String, int> points = {};
   String segment = 'all';
   bool loading = true;
+  String? organizationId;
 
   @override
   void initState() {
@@ -26,6 +42,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
 
   Future<void> load() async {
     final o = await ref.read(activeOrganizationProvider.future);
+    organizationId = o;
     if (o == null) return;
 
     final c = Supabase.instance.client;
@@ -53,10 +70,18 @@ class _CrmPageState extends ConsumerState<CrmPage> {
       }
     }
 
+    final camp = await c
+        .from('campaigns')
+        .select()
+        .eq('organization_id', o)
+        .order('created_at', ascending: false)
+        .limit(20);
+
     if (mounted) {
       setState(() {
         customers = List<Map<String, dynamic>>.from(r);
         points = p;
+        campaigns = List<Map<String, dynamic>>.from(camp);
         loading = false;
       });
     }
@@ -82,6 +107,13 @@ class _CrmPageState extends ConsumerState<CrmPage> {
       return customers
           .where((x) => (x['no_show_count'] as num? ?? 0) >= 3)
           .toList();
+    }
+    if (segment == 'birthday') {
+      final month = DateTime.now().month;
+      return customers.where((x) {
+        final b = x['birthday'];
+        return b != null && DateTime.parse(b).month == month;
+      }).toList();
     }
     return customers.where((x) => x['last_visit_at'] == null).toList();
   }
@@ -139,42 +171,71 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   }
 
   Future<void> campaign() async {
-    final o = await ref.read(activeOrganizationProvider.future);
+    final o = organizationId;
     if (o == null) return;
 
     final n = TextEditingController(text: 'Win Back Customers');
     final m = TextEditingController(
       text: 'We miss you! Enjoy 20% off your next visit.',
     );
+    String channel = 'push';
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Create campaign'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: n,
-              decoration: const InputDecoration(labelText: 'Campaign name'),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(
+            'Create campaign • ${_segmentLabel(segment)} segment',
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: n,
+                decoration: const InputDecoration(labelText: 'Campaign name'),
+              ),
+              TextField(
+                controller: m,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Message'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: channel,
+                decoration: const InputDecoration(labelText: 'Channel'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'push',
+                    child: Text('Push notification'),
+                  ),
+                  DropdownMenuItem(value: 'email', child: Text('Email')),
+                  DropdownMenuItem(value: 'sms', child: Text('SMS')),
+                ],
+                onChanged: (v) => setLocal(() => channel = v ?? 'push'),
+              ),
+              if (channel != 'push')
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Email/SMS delivery needs a provider that is not configured '
+                    'in this environment; the campaign will be recorded and its '
+                    'audience generated, but not actually delivered.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            TextField(
-              controller: m,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Message'),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save draft'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save draft'),
-          ),
-        ],
       ),
     );
 
@@ -182,8 +243,8 @@ class _CrmPageState extends ConsumerState<CrmPage> {
       await Supabase.instance.client.from('campaigns').insert({
         'organization_id': o,
         'name': n.text.trim(),
-        'segment': 'inactive_30',
-        'channel': 'email',
+        'segment': _segmentToDbKey[segment] ?? 'all',
+        'channel': channel,
         'message': m.text.trim(),
         'status': 'draft',
       });
@@ -193,15 +254,49 @@ class _CrmPageState extends ConsumerState<CrmPage> {
           const SnackBar(content: Text('Campaign saved as draft.')),
         );
       }
+      await load();
     }
   }
 
+  Future<void> sendCampaign(String id) async {
+    try {
+      final queued = await Supabase.instance.client.rpc(
+        'send_campaign',
+        params: {'p_campaign': id},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Campaign sent to $queued recipient(s).')),
+        );
+      }
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not send campaign: $e')));
+      }
+    }
+  }
+
+  String _segmentLabel(String key) => switch (key) {
+    'all' => 'All customers',
+    'vip' => 'VIP',
+    'inactive' => 'Inactive 30d',
+    'no_show' => 'No-show risk',
+    'first' => 'First visit',
+    'birthday' => 'Birthday this month',
+    _ => key,
+  };
+
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
     floatingActionButton: FloatingActionButton.extended(
       onPressed: addCustomer,
       icon: const Icon(Icons.person_add),
-      label: const Text('Customer'),
+      label: Text(l10n.crmAddCustomer),
     ),
     body: loading
         ? const Center(child: CircularProgressIndicator())
@@ -214,14 +309,14 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                   children: [
                     Expanded(
                       child: Text(
-                        'CRM • Loyalty • Campaigns',
+                        l10n.pageTitleCrm,
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                     ),
                     OutlinedButton.icon(
                       onPressed: campaign,
                       icon: const Icon(Icons.campaign_outlined),
-                      label: const Text('Campaign'),
+                      label: Text(l10n.crmCreateCampaign),
                     ),
                   ],
                 ),
@@ -253,6 +348,11 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                       label: const Text('First visit'),
                       selected: segment == 'first',
                       onSelected: (_) => setState(() => segment = 'first'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Birthday this month'),
+                      selected: segment == 'birthday',
+                      onSelected: (_) => setState(() => segment = 'birthday'),
                     ),
                   ],
                 ),
@@ -294,8 +394,33 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                     ),
                   );
                 }),
+                if (campaigns.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    'Campaigns',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  ...campaigns.map(
+                    (cmp) => Card(
+                      child: ListTile(
+                        title: Text(cmp['name'] ?? ''),
+                        subtitle: Text(
+                          '${cmp['segment']} • ${cmp['channel']} • ${cmp['status']}',
+                        ),
+                        trailing: cmp['status'] == 'sent'
+                            ? const Icon(Icons.check_circle, color: Colors.green)
+                            : TextButton(
+                                onPressed: () => sendCampaign(cmp['id']),
+                                child: const Text('Send'),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
   );
+  }
 }

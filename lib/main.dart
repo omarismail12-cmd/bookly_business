@@ -1,20 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/app.dart';
+import 'core/analytics/firebase_crash_reporting.dart';
 import 'core/config/app_config.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  if (!AppConfig.isConfigured) {
-    runApp(const ProviderScope(child: _ConfigMissingApp()));
-    return;
-  }
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
+  await runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      // Safe no-op until a real Firebase project is configured for this
+      // platform — see FirebaseCrashReporting's class doc.
+      await crashReporting.initialize();
+      if (!AppConfig.isConfigured) {
+        runApp(const ProviderScope(child: _ConfigMissingApp()));
+        return;
+      }
+      await Supabase.initialize(
+        url: AppConfig.supabaseUrl,
+        anonKey: AppConfig.supabaseAnonKey,
+      );
+      runApp(const ProviderScope(child: BooklyApp()));
+    },
+    (error, stackTrace) {
+      crashReporting.recordError(error, stackTrace);
+    },
   );
-  runApp(const ProviderScope(child: BooklyApp()));
 }
 
 class _ConfigMissingApp extends StatelessWidget {

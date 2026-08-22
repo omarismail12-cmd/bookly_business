@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
 
@@ -16,11 +17,13 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   List<Map<String, dynamic>> services = [],
       staff = [],
       customers = [],
+      locations = [],
       slots = [];
   String? serviceId, staffId, customerId, locationId;
   DateTime date = DateTime.now();
   bool loading = true, loadingSlots = false, booking = false;
   String? message;
+  bool messageIsError = false;
   String? businessName;
   String? businessTimezone;
   final name = TextEditingController(),
@@ -72,6 +75,12 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           .eq('organization_id', org)
           .eq('status', 'active')
           .order('display_name');
+      final loc = await c
+          .from('locations')
+          .select('id,name')
+          .eq('organization_id', org)
+          .isFilter('deleted_at', null)
+          .order('name');
       if (!isPublic) {
         final cu = await c
             .from('customers')
@@ -86,12 +95,17 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         setState(() {
           services = List<Map<String, dynamic>>.from(s);
           staff = List<Map<String, dynamic>>.from(st);
+          locations = List<Map<String, dynamic>>.from(loc);
+          locationId = locations.isNotEmpty
+              ? locations.first['id'] as String
+              : null;
           loading = false;
         });
     } catch (e) {
       if (mounted)
         setState(() {
           message = e.toString();
+          messageIsError = true;
           loading = false;
         });
     }
@@ -112,7 +126,12 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       );
       if (mounted) setState(() => slots = List<Map<String, dynamic>>.from(r));
     } catch (e) {
-      if (mounted) setState(() => message = _friendly(e));
+      if (mounted) {
+        setState(() {
+          message = _friendly(e);
+          messageIsError = true;
+        });
+      }
     } finally {
       if (mounted) setState(() => loadingSlots = false);
     }
@@ -123,7 +142,10 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     if (isPublic &&
         (name.text.trim().length < 2 ||
             (email.text.trim().isEmpty && phone.text.trim().isEmpty))) {
-      setState(() => message = 'Enter your name and an email or phone number.');
+      setState(() {
+        message = 'Enter your name and an email or phone number.';
+        messageIsError = true;
+      });
       return;
     }
     setState(() => booking = true);
@@ -165,18 +187,23 @@ class _BookingPageState extends ConsumerState<BookingPage> {
             'p_notes': null,
           },
         );
-        await c.rpc(
-          'queue_appointment_notifications',
-          params: {'p_appointment': id},
-        );
       }
-      if (mounted)
-        setState(
-          () => message = 'Booking confirmed. Reference: ${id.substring(0, 8)}',
-        );
+      if (mounted) {
+        setState(() {
+          message = AppLocalizations.of(
+            context,
+          ).bookingConfirmed(id.substring(0, 8));
+          messageIsError = false;
+        });
+      }
       await getSlots();
     } catch (e) {
-      if (mounted) setState(() => message = _friendly(e));
+      if (mounted) {
+        setState(() {
+          message = _friendly(e);
+          messageIsError = true;
+        });
+      }
     } finally {
       if (mounted) setState(() => booking = false);
     }
@@ -193,43 +220,44 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   @override
   Widget build(BuildContext context) {
     if (loading) return const Center(child: CircularProgressIndicator());
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: isPublic ? AppBar(title: Text(businessName ?? 'Bookly')) : null,
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
           Text(
-            isPublic ? 'Book an appointment' : 'New Booking',
+            isPublic ? l10n.bookingTitlePublic : l10n.bookingTitleNew,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           if (isPublic)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('Choose a service, staff member and available time.'),
+              child: Text(l10n.bookingChooseServiceStaffTime),
             ),
           if (isPublic) ...[
             const SizedBox(height: 20),
             TextField(
               controller: name,
-              decoration: const InputDecoration(labelText: 'Full name'),
+              decoration: InputDecoration(labelText: l10n.bookingFullName),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: email,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(labelText: l10n.bookingEmail),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: phone,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone'),
+              decoration: InputDecoration(labelText: l10n.bookingPhone),
             ),
           ],
           const SizedBox(height: 20),
           DropdownButtonFormField<String>(
             value: serviceId,
-            decoration: const InputDecoration(labelText: 'Service'),
+            decoration: InputDecoration(labelText: l10n.bookingService),
             items: services
                 .map(
                   (x) => DropdownMenuItem<String>(
@@ -248,7 +276,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: staffId,
-            decoration: const InputDecoration(labelText: 'Staff'),
+            decoration: InputDecoration(labelText: l10n.bookingStaff),
             items: staff
                 .map(
                   (x) => DropdownMenuItem<String>(
@@ -266,7 +294,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: customerId,
-              decoration: const InputDecoration(labelText: 'Customer'),
+              decoration: InputDecoration(labelText: l10n.bookingCustomer),
               items: customers
                   .map(
                     (x) => DropdownMenuItem<String>(
@@ -276,6 +304,25 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                   )
                   .toList(),
               onChanged: (v) => setState(() => customerId = v),
+            ),
+          ],
+          if (locations.length > 1) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: locationId,
+              decoration: InputDecoration(labelText: l10n.bookingLocation),
+              items: locations
+                  .map(
+                    (x) => DropdownMenuItem<String>(
+                      value: (x['id'] as String),
+                      child: Text(x['name'] as String),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                setState(() => locationId = v);
+                getSlots();
+              },
             ),
           ],
           const SizedBox(height: 12),
@@ -318,9 +365,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
               child: Text(
                 message!,
                 style: TextStyle(
-                  color: message!.startsWith('Booking confirmed')
-                      ? Colors.green
-                      : Theme.of(context).colorScheme.error,
+                  color: messageIsError
+                      ? Theme.of(context).colorScheme.error
+                      : Colors.green,
                 ),
               ),
             ),

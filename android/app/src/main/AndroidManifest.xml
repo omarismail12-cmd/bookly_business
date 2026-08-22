@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for every Supabase/HTTP call this app makes; without it the
+         release build cannot reach the network at all (debug builds are
+         unaffected because the Flutter tool injects it for debug only). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ requires this to be declared for FCM notifications to
+         be shown once a real Firebase project is configured. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="bookly_business"
         android:name="${applicationName}"

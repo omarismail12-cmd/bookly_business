@@ -14,9 +14,11 @@ class OrganizationMembership {
   });
 }
 
-final activeMembershipProvider = FutureProvider<OrganizationMembership?>((
-  ref,
-) async {
+/// Single source of truth for "what is the current user's active business
+/// membership" — used both by [activeMembershipProvider] (Riverpod call
+/// sites) and directly by widgets that aren't ConsumerWidgets (e.g.
+/// BusinessShell), so the query only lives in one place.
+Future<OrganizationMembership?> fetchActiveMembership() async {
   final uid = Supabase.instance.client.auth.currentUser?.id;
   if (uid == null) return null;
   final rows = await Supabase.instance.client
@@ -35,7 +37,11 @@ final activeMembershipProvider = FutureProvider<OrganizationMembership?>((
     timezone: org['timezone']?.toString() ?? 'UTC',
     role: row['role']?.toString() ?? 'staff',
   );
-});
+}
+
+final activeMembershipProvider = FutureProvider<OrganizationMembership?>(
+  (ref) => fetchActiveMembership(),
+);
 
 final activeOrganizationProvider = FutureProvider<String?>((ref) async {
   return (await ref.watch(activeMembershipProvider.future))?.organizationId;

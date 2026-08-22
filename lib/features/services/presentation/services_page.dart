@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 
 class ServicesPage extends ConsumerStatefulWidget {
@@ -44,6 +45,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     final durationController = TextEditingController(text: '30');
     final bufferController = TextEditingController(text: '0');
     final priceController = TextEditingController(text: '1500');
+    final depositController = TextEditingController(text: '0');
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -69,6 +71,12 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                   labelText: 'Price minor units',
                 ),
               ),
+              TextField(
+                controller: depositController,
+                decoration: const InputDecoration(
+                  labelText: 'Deposit required (minor units, 0 = none)',
+                ),
+              ),
             ],
           ),
         ),
@@ -92,12 +100,15 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
       'duration_min': int.parse(durationController.text),
       'buffer_min': int.parse(bufferController.text),
       'price_minor': int.parse(priceController.text),
+      'deposit_required_minor': int.tryParse(depositController.text) ?? 0,
     });
     load();
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
     floatingActionButton: FloatingActionButton(
       onPressed: add,
       child: const Icon(Icons.add),
@@ -108,7 +119,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
             padding: const EdgeInsets.all(24),
             children: [
               Text(
-                'Services',
+                l10n.pageTitleServices,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 12),
@@ -117,7 +128,8 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                   child: ListTile(
                     title: Text(row['name']),
                     subtitle: Text(
-                      '${row['duration_min']} min • buffer ${row['buffer_min']} min',
+                      '${row['duration_min']} min • buffer ${row['buffer_min']} min'
+                      '${(row['deposit_required_minor'] as num? ?? 0) > 0 ? ' • deposit ${(row['deposit_required_minor'] as num) / 100}' : ''}',
                     ),
                     trailing: Text('${(row['price_minor'] as num) / 100}'),
                   ),
@@ -126,4 +138,5 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
             ],
           ),
   );
+  }
 }

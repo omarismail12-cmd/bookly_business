@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import '../core/localization/gen/app_localizations.dart';
 import '../core/theme/app_theme.dart';
 import 'router.dart';
 
@@ -10,12 +10,12 @@ class BooklyApp extends StatelessWidget {
     title: 'Bookly Business',
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light(),
-    supportedLocales: const [Locale('en'), Locale('ar')],
+    supportedLocales: AppLocalizations.supportedLocales,
     localeResolutionCallback: (locale, supported) => supported.firstWhere(
       (x) => x.languageCode == locale?.languageCode,
       orElse: () => supported.first,
     ),
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
     routerConfig: appRouter,
   );
 }

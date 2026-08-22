@@ -1,10 +1,18 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/localization/gen/app_localizations.dart';
+import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/formatters/currency.dart';
+
+final _pdfService = PdfDocumentService();
 
 class PaymentsPage extends ConsumerStatefulWidget {
   const PaymentsPage({super.key});
@@ -17,6 +25,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
   List<Map<String, dynamic>> rows = [];
   List<dynamic> appointments = [];
   bool loading = true;
+  String businessName = 'Bookly Business';
 
   @override
   void initState() {
@@ -29,6 +38,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     if (organizationId == null) {
       return;
     }
+    final membership = await ref.read(activeMembershipProvider.future);
 
     final client = Supabase.instance.client;
     final payments = await client
@@ -56,8 +66,33 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     setState(() {
       rows = List<Map<String, dynamic>>.from(payments);
       appointments = List<dynamic>.from(appointmentsList);
+      businessName = membership?.organizationName ?? businessName;
       loading = false;
     });
+  }
+
+  Future<void> printReceipt(Map<String, dynamic> row) async {
+    final customer =
+        ((row['appointments'] as Map?)?['customers'] as Map?)?['name'] ??
+        'Customer';
+    final createdAt = row['created_at'] != null
+        ? DateTime.parse(row['created_at']).toLocal()
+        : DateTime.now();
+    await Printing.layoutPdf(
+      onLayout: (_) async => Uint8List.fromList(
+        await _pdfService.createReceipt(
+          data: {
+            'businessName': businessName,
+            'reference': (row['id'] as String).substring(0, 8),
+            'date': DateFormat.yMMMd().add_jm().format(createdAt),
+            'customerName': customer.toString(),
+            'method': '${row['method']}',
+            'type': '${row['type']}',
+            'amount': formatMinor((row['amount_minor'] as num).toInt()),
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> addPayment() async {
@@ -171,11 +206,12 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: loading ? null : addPayment,
         icon: const Icon(Icons.add_card),
-        label: const Text('Payment'),
+        label: Text(l10n.paymentsAddPayment),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -185,7 +221,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   Text(
-                    'Payments',
+                    l10n.pageTitlePayments,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
@@ -200,8 +236,20 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         subtitle: Text(
                           '${row['method']} • ${row['type']} • ${row['status']}',
                         ),
-                        trailing: Text(
-                          formatMinor((row['amount_minor'] as num).toInt()),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              formatMinor(
+                                (row['amount_minor'] as num).toInt(),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Print / share receipt',
+                              onPressed: () => printReceipt(row),
+                              icon: const Icon(Icons.receipt_long_outlined),
+                            ),
+                          ],
                         ),
                       ),
                     );

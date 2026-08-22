@@ -1,3 +1,12 @@
+# Secrets / environment files — SUPABASE_URL and the anon/publishable key
+# are safe to pass via --dart-define on the command line, but never commit
+# a file holding them (or any service-role/DB-password credential).
+.env
+.env.*
+*.pem
+*.key
+supabase/.temp/
+
 # Miscellaneous
 *.class
 *.log

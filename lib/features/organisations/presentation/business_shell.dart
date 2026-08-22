@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/analytics/firebase_crash_reporting.dart';
+import '../../../core/localization/gen/app_localizations.dart';
+import '../../../core/notifications/firebase_notification_service.dart';
 import '../../../core/permissions/app_role.dart';
 import '../../../core/security/org_context.dart';
 import '../../dashboard/presentation/dashboard_page.dart';
@@ -10,7 +15,9 @@ import '../../services/presentation/services_page.dart';
 import '../../staff/presentation/staff_page.dart';
 import '../../payments/presentation/payments_page.dart';
 import '../../customers/loyalty/crm_page.dart';
+import '../../packages/presentation/offers_page.dart';
 import '../../reports/presentation/reports_page.dart';
+import '../../../shared/widgets/sync_status_banner.dart';
 import 'organization_setup_page.dart';
 
 class BusinessShell extends StatefulWidget {
@@ -33,6 +40,7 @@ class _BusinessShellState extends State<BusinessShell> {
   bool loading = true;
   bool suspended = false;
   late List<_NavItem> items;
+  final _notifications = FirebaseNotificationService();
 
   @override
   void initState() {
@@ -45,11 +53,30 @@ class _BusinessShellState extends State<BusinessShell> {
       final all = await Supabase.instance.client.rpc('get_my_memberships');
       final rows = List<Map<String, dynamic>>.from(all);
       suspended = rows.any((x) => x['status'] == 'suspended');
-      membership = await ProviderScopeContainer.readMembership();
+      membership = await fetchActiveMembership();
     } catch (_) {
       membership = null;
     }
     if (mounted) setState(() => loading = false);
+    final m = membership;
+    if (m != null) {
+      // Best-effort push registration. FirebaseNotificationService is a
+      // safe no-op until a real Firebase project is configured for this
+      // platform (see its class doc).
+      _registerForPush(m.organizationId);
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      crashReporting.setUser(uid);
+    }
+  }
+
+  Future<void> _registerForPush(String organizationId) async {
+    try {
+      await _notifications.initialize();
+      await _notifications.requestPermission();
+      await _notifications.subscribeToOrganization(organizationId);
+    } catch (_) {
+      // Never let push registration block or crash the business shell.
+    }
   }
 
   Future<void> logout() => Supabase.instance.client.auth.signOut();
@@ -74,45 +101,46 @@ class _BusinessShellState extends State<BusinessShell> {
       return OrganizationSetupPage(onCreated: load);
     }
     final role = AppRole.values.byName(membership!.role);
+    final l10n = AppLocalizations.of(context);
     items = [
       _NavItem(
-        'Dashboard',
+        l10n.navDashboard,
         Icons.dashboard_outlined,
         const DashboardPage(),
         (_) => true,
       ),
       _NavItem(
-        'Calendar',
+        l10n.navCalendar,
         Icons.calendar_month_outlined,
         const CalendarPage(),
         (_) => true,
       ),
       _NavItem(
-        'Queue',
+        l10n.navQueue,
         Icons.people_outline,
         const QueuePage(),
         (r) => r != AppRole.staff,
       ),
       _NavItem(
-        'Customers',
+        l10n.navCustomers,
         Icons.person_outline,
         const CustomersPage(),
         (_) => true,
       ),
       _NavItem(
-        'Services',
+        l10n.navServices,
         Icons.cut,
         const ServicesPage(),
         (r) => r == AppRole.owner || r == AppRole.manager,
       ),
       _NavItem(
-        'Staff',
+        l10n.navStaff,
         Icons.badge_outlined,
         const StaffPage(),
         (r) => r == AppRole.owner || r == AppRole.manager,
       ),
       _NavItem(
-        'Payments',
+        l10n.navPayments,
         Icons.payments_outlined,
         const PaymentsPage(),
         (r) =>
@@ -121,13 +149,19 @@ class _BusinessShellState extends State<BusinessShell> {
             r == AppRole.receptionist,
       ),
       _NavItem(
-        'CRM',
+        l10n.navCrm,
         Icons.card_giftcard,
         const CrmPage(),
         (r) => r == AppRole.owner || r == AppRole.manager,
       ),
       _NavItem(
-        'Reports',
+        l10n.navOffers,
+        Icons.local_offer_outlined,
+        const OffersPage(),
+        (r) => r == AppRole.owner || r == AppRole.manager,
+      ),
+      _NavItem(
+        l10n.navReports,
         Icons.bar_chart,
         const ReportsPage(),
         (r) => r == AppRole.owner || r == AppRole.manager,
@@ -156,24 +190,31 @@ class _BusinessShellState extends State<BusinessShell> {
               IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
             ],
           ),
-          body: Row(
+          body: Column(
             children: [
-              if (wide)
-                NavigationRail(
-                  selectedIndex: index < 5 ? index : 0,
-                  onDestinationSelected: (v) => setState(() => index = v),
-                  labelType: NavigationRailLabelType.all,
-                  destinations: items
-                      .map(
-                        (x) => NavigationRailDestination(
-                          icon: Icon(x.icon),
-                          selectedIcon: Icon(x.icon),
-                          label: Text(x.label),
-                        ),
-                      )
-                      .toList(),
+              const SyncStatusBanner(),
+              Expanded(
+                child: Row(
+                  children: [
+                    if (wide)
+                      NavigationRail(
+                        selectedIndex: index < 5 ? index : 0,
+                        onDestinationSelected: (v) => setState(() => index = v),
+                        labelType: NavigationRailLabelType.all,
+                        destinations: items
+                            .map(
+                              (x) => NavigationRailDestination(
+                                icon: Icon(x.icon),
+                                selectedIcon: Icon(x.icon),
+                                label: Text(x.label),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    Expanded(child: items[index].page),
+                  ],
                 ),
-              Expanded(child: items[index].page),
+              ),
             ],
           ),
           bottomNavigationBar: wide
@@ -194,29 +235,6 @@ class _BusinessShellState extends State<BusinessShell> {
                 ),
         );
       },
-    );
-  }
-}
-
-class ProviderScopeContainer {
-  static Future<OrganizationMembership?> readMembership() async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return null;
-    final rows = await Supabase.instance.client
-        .from('organization_members')
-        .select('organization_id,role,organizations(id,name,timezone,status)')
-        .eq('user_id', uid)
-        .eq('status', 'active')
-        .limit(1);
-    if (rows.isEmpty) return null;
-    final r = Map<String, dynamic>.from(rows.first);
-    final o = Map<String, dynamic>.from(r['organizations'] as Map);
-    if ((o['status'] ?? 'active') != 'active') return null;
-    return OrganizationMembership(
-      organizationId: r['organization_id'],
-      organizationName: o['name'] ?? 'Bookly Business',
-      timezone: o['timezone'] ?? 'UTC',
-      role: r['role'] ?? 'staff',
     );
   }
 }

@@ -1,9 +1,11 @@
+import '../../core/localization/gen/app_localizations.dart';
+
 class Validators {
-  static String? email(String? value) {
+  static String? email(String? value, AppLocalizations l10n) {
     final email = value?.trim() ?? '';
 
     if (email.isEmpty) {
-      return 'Email is required';
+      return l10n.validationEmailRequired;
     }
 
     final emailRegex = RegExp(
@@ -12,45 +14,49 @@ class Validators {
     );
 
     if (!emailRegex.hasMatch(email)) {
-      return 'Enter a valid email address';
+      return l10n.validationEmailInvalid;
     }
 
     return null;
   }
 
-  static String? password(String? value) {
+  static String? password(String? value, AppLocalizations l10n) {
     final password = value ?? '';
 
     if (password.isEmpty) {
-      return 'Password is required';
+      return l10n.validationPasswordRequired;
     }
 
     if (password.length < 8) {
-      return 'Password must be at least 8 characters';
+      return l10n.validationPasswordTooShort;
     }
 
     return null;
   }
 
-  static String? confirmPassword(String? value, String password) {
+  static String? confirmPassword(
+    String? value,
+    String password,
+    AppLocalizations l10n,
+  ) {
     if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
+      return l10n.validationConfirmPasswordRequired;
     }
 
     if (value != password) {
-      return 'Passwords do not match';
+      return l10n.validationPasswordMismatch;
     }
 
     return null;
   }
 
-  static String? name(String? value) {
+  static String? name(String? value, AppLocalizations l10n) {
     if (value == null || value.trim().isEmpty) {
-      return 'Name is required';
+      return l10n.validationNameRequired;
     }
 
     if (value.trim().length < 2) {
-      return 'Name must be at least 2 characters';
+      return l10n.validationNameTooShort;
     }
 
     return null;

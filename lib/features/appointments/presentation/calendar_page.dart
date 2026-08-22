@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/security/org_context.dart';
+import '../../../shared/formatters/currency.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -71,7 +72,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       });
   }
 
-  Future<void> status(String id, String value) async {
+  Future<void> setStatus(String id, String value) async {
     try {
       await Supabase.instance.client.rpc(
         'change_appointment_status',
@@ -83,6 +84,24 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Status update failed: $e')));
+    }
+  }
+
+  /// Cancellation goes through the dedicated cancel_appointment() RPC (not
+  /// change_appointment_status) so the service's cancellation window is
+  /// actually enforced server-side.
+  Future<void> cancel(String id) async {
+    try {
+      await Supabase.instance.client.rpc(
+        'cancel_appointment',
+        params: {'p_appointment': id},
+      );
+      await load();
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Cancellation failed: $e')));
     }
   }
 
@@ -197,19 +216,26 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       final staff =
                           (row['staff'] as Map?)?['display_name'] ?? 'Staff';
                       final start = DateTime.parse(row['starts_at']).toLocal();
-                      final status = row['status'] ?? '';
+                      final statusLabel = row['status'] ?? '';
+                      final depositDue =
+                          ((row['deposit_required_minor'] as num?) ?? 0) -
+                          ((row['deposit_paid_minor'] as num?) ?? 0);
                       return Card(
                         child: ListTile(
                           title: Text(customer),
                           subtitle: Text(
-                            '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} • $staff • $status',
+                            '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} • $staff • $statusLabel'
+                            '${depositDue > 0 ? ' • deposit due ${formatMinor(depositDue.toInt())}' : ''}',
                           ),
                           trailing: PopupMenuButton<String>(
                             onSelected: (v) {
-                              if (v == 'reschedule')
+                              if (v == 'reschedule') {
                                 reschedule(row['id'], start);
-                              else
-                                status(row['id'], v);
+                              } else if (v == 'cancelled') {
+                                cancel(row['id']);
+                              } else {
+                                setStatus(row['id'], v);
+                              }
                             },
                             itemBuilder: (_) => const [
                               PopupMenuItem(

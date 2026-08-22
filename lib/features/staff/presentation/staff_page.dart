@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 
 class StaffPage extends ConsumerStatefulWidget {
@@ -219,12 +220,13 @@ class _StaffPageState extends ConsumerState<StaffPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       floatingActionButton: role == 'owner'
           ? FloatingActionButton.extended(
               onPressed: add,
               icon: const Icon(Icons.add),
-              label: const Text('Staff'),
+              label: Text(l10n.staffAddStaff),
             )
           : null,
       body: loading
@@ -238,7 +240,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Staff & Schedules',
+                          l10n.pageTitleStaff,
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                       ),

@@ -14,6 +14,8 @@ Deno.serve(async () => {
     .lte("scheduled_for", new Date().toISOString())
     .order("scheduled_for")
     .limit(100);
+  // notification_jobs.title/body (set by send_campaign()) override the
+  // kind-based copy below; every other job kind still falls back to it.
   if (error)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
@@ -36,17 +38,23 @@ Deno.serve(async () => {
     }
     const { data: tokens } = await tokenQuery;
     const title =
-      job.kind === "confirmation"
+      job.title ??
+      (job.kind === "confirmation"
         ? "Booking confirmed"
         : job.kind === "reminder_24h"
           ? "Appointment tomorrow"
-          : "Appointment reminder";
+          : job.kind === "reminder_2h"
+            ? "Appointment reminder"
+            : "Bookly Business");
     const body =
-      job.kind === "confirmation"
+      job.body ??
+      (job.kind === "confirmation"
         ? "Your Bookly appointment is confirmed."
         : job.kind === "reminder_24h"
           ? "You have an appointment in about 24 hours."
-          : "You have an appointment in about 2 hours.";
+          : job.kind === "reminder_2h"
+            ? "You have an appointment in about 2 hours."
+            : "");
     let jobSent = false;
     for (const t of tokens ?? []) {
       const response = await fetch(

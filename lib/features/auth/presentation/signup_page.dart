@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../../shared/validators/validators.dart';
 
 class SignupPage extends StatefulWidget {
@@ -136,8 +137,9 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      appBar: AppBar(title: Text(l10n.signupSubmit)),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -171,11 +173,11 @@ class _SignupPageState extends State<SignupPage> {
                   TextFormField(
                     controller: _nameController,
                     textInputAction: TextInputAction.next,
-                    validator: Validators.name,
-                    decoration: const InputDecoration(
-                      labelText: 'Full name',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
+                    validator: (v) => Validators.name(v, l10n),
+                    decoration: InputDecoration(
+                      labelText: l10n.signupFullName,
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
 
@@ -185,12 +187,12 @@ class _SignupPageState extends State<SignupPage> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    validator: Validators.email,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
+                    validator: (v) => Validators.email(v, l10n),
+                    decoration: InputDecoration(
+                      labelText: l10n.loginEmail,
                       hintText: 'you@example.com',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
 
@@ -200,9 +202,9 @@ class _SignupPageState extends State<SignupPage> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.next,
-                    validator: Validators.password,
+                    validator: (v) => Validators.password(v, l10n),
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: l10n.loginPassword,
                       prefixIcon: const Icon(Icons.lock_outline),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
@@ -230,6 +232,7 @@ class _SignupPageState extends State<SignupPage> {
                       return Validators.confirmPassword(
                         value,
                         _passwordController.text,
+                        l10n,
                       );
                     },
                     onFieldSubmitted: (_) {
@@ -238,7 +241,7 @@ class _SignupPageState extends State<SignupPage> {
                       }
                     },
                     decoration: InputDecoration(
-                      labelText: 'Confirm password',
+                      labelText: l10n.signupConfirmPassword,
                       prefixIcon: const Icon(Icons.lock_outline),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
@@ -268,7 +271,7 @@ class _SignupPageState extends State<SignupPage> {
                               height: 22,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Create Account'),
+                          : Text(l10n.signupSubmit),
                     ),
                   ),
 
@@ -280,7 +283,7 @@ class _SignupPageState extends State<SignupPage> {
                         : () {
                             Navigator.pop(context);
                           },
-                    child: const Text('Already have an account? Login'),
+                    child: Text(l10n.signupHaveAccount),
                   ),
                 ],
               ),
