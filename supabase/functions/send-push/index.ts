@@ -3,8 +3,12 @@ import { sendFcm } from "../_shared/fcm.ts";
 Deno.serve(async (req) => {
   if (req.method !== "POST")
     return new Response("Method Not Allowed", { status: 405 });
+  // Fail closed: if the secret isn't configured, refuse every caller rather
+  // than silently accepting anyone holding the (intentionally public) anon
+  // key — this endpoint sends real push notifications to real device
+  // tokens, so an unset secret must not become an open relay.
   const workerSecret = Deno.env.get("NOTIFICATION_WORKER_SECRET");
-  if (workerSecret && req.headers.get("x-notification-secret") !== workerSecret)
+  if (!workerSecret || req.headers.get("x-notification-secret") !== workerSecret)
     return new Response("Unauthorized", { status: 401 });
   try {
     const body = await req.json();

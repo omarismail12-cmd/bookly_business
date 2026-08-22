@@ -136,21 +136,18 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  AppLocalizations.of(c).pageTitleReports,
-                  style: Theme.of(c).textTheme.headlineSmall,
-                ),
-              ),
-              IconButton(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final title = Text(
+                AppLocalizations.of(c).pageTitleReports,
+                style: Theme.of(c).textTheme.headlineSmall,
+              );
+              final exportButton = IconButton(
                 tooltip: 'Export PDF',
                 onPressed: exportPdf,
                 icon: const Icon(Icons.picture_as_pdf_outlined),
-              ),
-              const SizedBox(width: 8),
-              SegmentedButton<String>(
+              );
+              final rangeSelector = SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'week', label: Text('This week')),
                   ButtonSegment(value: 'month', label: Text('This month')),
@@ -160,8 +157,35 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   setState(() => range = v.first);
                   load();
                 },
-              ),
-            ],
+              );
+              // SegmentedButton doesn't shrink like Expanded/Text does — on
+              // a narrow phone, title + export icon + both segments can
+              // exceed the available width and overflow the Row. Stack
+              // instead of squeezing below the breakpoint.
+              if (constraints.maxWidth < 480) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: title),
+                        exportButton,
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    rangeSelector,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: title),
+                  exportButton,
+                  const SizedBox(width: 8),
+                  rangeSelector,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           Text('Occupancy & volume', style: Theme.of(c).textTheme.titleMedium),

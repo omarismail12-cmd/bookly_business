@@ -75,4 +75,21 @@ class SqliteSyncQueueStore implements SyncQueueStore {
     );
     return rows.first['c'] as int;
   }
+
+  @override
+  Future<int> failedCount() async {
+    final db = await AppDatabase.instance.open();
+    final rows = db.select(
+      "SELECT COUNT(*) as c FROM sync_queue WHERE status = 'failed'",
+    );
+    return rows.first['c'] as int;
+  }
+
+  @override
+  Future<void> resetFailed() async {
+    final db = await AppDatabase.instance.open();
+    db.execute(
+      "UPDATE sync_queue SET status = 'pending', retry_count = 0, error = NULL WHERE status = 'failed'",
+    );
+  }
 }

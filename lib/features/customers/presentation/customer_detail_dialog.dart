@@ -173,6 +173,44 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
     }
   }
 
+  Future<void> redeemPackageUse(Map<String, dynamic> customerPackage) async {
+    final name = (customerPackage['packages'] as Map?)?['name'] ?? 'Package';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Use one visit'),
+        content: Text(
+          'Use one visit from "$name"? '
+          '${customerPackage['remaining_uses']} remaining.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Use'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await Supabase.instance.client.rpc(
+        'redeem_package_use',
+        params: {'p_customer_package': customerPackage['id']},
+      );
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not use package visit: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> sellPackage() async {
     if (catalogPackages.isEmpty) return;
     String? packageId = catalogPackages.first['id'] as String;
@@ -430,7 +468,10 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
                       ),
                       const SizedBox(height: 8),
                       Align(
-                        alignment: Alignment.centerRight,
+                        // AlignmentDirectional so this mirrors correctly in
+                        // Arabic (RTL) instead of always pinning to the
+                        // geometric right.
+                        alignment: AlignmentDirectional.centerEnd,
                         child: FilledButton(
                           onPressed: savingNotes ? null : saveNotes,
                           child: const Text('Save notes'),
@@ -480,6 +521,15 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
                             '${p['remaining_uses']} uses left • ${p['status']}'
                             '${p['expires_at'] != null ? ' • expires ${DateTime.parse(p['expires_at']).toLocal().toString().substring(0, 10)}' : ''}',
                           ),
+                          trailing:
+                              canTransact &&
+                                  p['status'] == 'active' &&
+                                  (p['remaining_uses'] as num? ?? 0) > 0
+                              ? TextButton(
+                                  onPressed: () => redeemPackageUse(p),
+                                  child: const Text('Use 1'),
+                                )
+                              : null,
                         ),
                       ),
                       const Divider(height: 32),

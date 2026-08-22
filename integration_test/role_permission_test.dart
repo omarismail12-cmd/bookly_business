@@ -1,6 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:test/test.dart';
 
 import 'test_helpers.dart';
 
@@ -12,14 +10,14 @@ import 'test_helpers.dart';
 ///     rather than raising, so the assertion is "empty result", not "throw").
 ///  2. A `staff`-role member cannot perform an owner-only action
 ///     (set_member_role_by_email) or write to organizations (owner-only).
+///
+/// Run with `dart test integration_test` (not `flutter test` — see
+/// test_helpers.dart's doc comment for why).
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets(
+  test(
     'staff cannot see another org\'s data or perform owner-only actions',
-    (tester) async {
-      await ensureSupabaseInitialized();
-      final client = Supabase.instance.client;
+    () async {
+      final client = ensureSupabaseInitialized();
 
       // Org A: owner + one customer, used as the "other org" that must stay
       // invisible to org B's staff member.

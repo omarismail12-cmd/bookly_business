@@ -55,7 +55,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
 
     final appointmentsList = await client
         .from('appointments')
-        .select('id,starts_at,customers(name)')
+        .select('id,starts_at,customer_id,customers(name)')
         .eq('organization_id', organizationId)
         .inFilter('status', [
           'confirmed',
@@ -105,84 +105,224 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     );
   }
 
+  /// Active membership discount for a customer, or null if they have none.
+  /// membership_discount_percent (0011/0010) is stored on the row but
+  /// nothing applies it automatically — this is the one place a staff
+  /// member can pull it in before recording a payment.
+  Future<num?> _activeMembershipDiscount(String customerId) async {
+    final row = await Supabase.instance.client
+        .from('customer_memberships')
+        .select('memberships(discount_percent)')
+        .eq('customer_id', customerId)
+        .eq('status', 'active')
+        .gte('ends_at', DateTime.now().toUtc().toIso8601String())
+        .order('ends_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    return (row?['memberships'] as Map?)?['discount_percent'] as num?;
+  }
+
   Future<void> addPayment() async {
     String? appointment;
     String method = 'cash';
     String type = 'payment';
     final amount = TextEditingController();
+    final couponCode = TextEditingController();
+    num? membershipDiscountPercent;
+    bool applyMembershipDiscount = false;
+    bool saving = false;
+    String? error;
 
-    final ok = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) {
+          Future<void> onAppointmentChanged(String? value) async {
+            setLocal(() {
+              appointment = value;
+              membershipDiscountPercent = null;
+              applyMembershipDiscount = false;
+            });
+            final customerId = appointments.firstWhere(
+              (a) => a['id'] == value,
+            )['customer_id'] as String?;
+            if (customerId == null) return;
+            final discount = await _activeMembershipDiscount(customerId);
+            if (context.mounted) {
+              setLocal(() => membershipDiscountPercent = discount);
+            }
+          }
+
+          Future<void> save() async {
+            final baseAmount = int.tryParse(amount.text.trim());
+            if (appointment == null || baseAmount == null || baseAmount <= 0) {
+              setLocal(() => error = 'Choose an appointment and a valid amount.');
+              return;
+            }
+            setLocal(() {
+              saving = true;
+              error = null;
+            });
+            try {
+              var finalAmount = baseAmount;
+              final client = Supabase.instance.client;
+
+              if (couponCode.text.trim().isNotEmpty) {
+                final customerId = appointments.firstWhere(
+                  (a) => a['id'] == appointment,
+                )['customer_id'] as String?;
+                final org = await ref.read(activeOrganizationProvider.future);
+                final result = await client.rpc(
+                  'redeem_coupon',
+                  params: {
+                    'p_org': org,
+                    'p_code': couponCode.text.trim(),
+                    'p_customer': customerId,
+                    'p_appointment': appointment,
+                  },
+                );
+                final data = Map<String, dynamic>.from(result as Map);
+                final pct = data['discount_percent'] as num?;
+                final minor = data['discount_minor'] as num?;
+                if (pct != null) {
+                  finalAmount -= (finalAmount * pct / 100).round();
+                } else if (minor != null) {
+                  finalAmount -= minor.toInt();
+                }
+              }
+
+              if (applyMembershipDiscount && membershipDiscountPercent != null) {
+                finalAmount -=
+                    (finalAmount * membershipDiscountPercent! / 100).round();
+              }
+
+              finalAmount = finalAmount < 0 ? 0 : finalAmount;
+              if (finalAmount <= 0) {
+                throw Exception('Discounted amount must be greater than zero.');
+              }
+
+              await client.rpc(
+                'record_payment',
+                params: {
+                  'p_idempotency': const Uuid().v4(),
+                  'p_appointment': appointment,
+                  'p_amount': finalAmount,
+                  'p_method': method,
+                  'p_type': type,
+                },
+              );
+              if (context.mounted) Navigator.pop(context);
+            } catch (e) {
+              setLocal(() {
+                saving = false;
+                error = '$e';
+              });
+            }
+          }
+
           return AlertDialog(
             title: const Text('Record payment'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: appointment,
-                  decoration: const InputDecoration(labelText: 'Appointment'),
-                  items: appointments.map((item) {
-                    final customer =
-                        (item['customers'] as Map?)?['name'] ?? 'Customer';
-                    return DropdownMenuItem<String>(
-                      value: item['id'],
-                      child: Text(
-                        '$customer • ${DateTime.parse(item['starts_at']).toLocal()}',
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setLocal(() => appointment = value),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amount,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (minor units)',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: method,
-                  decoration: const InputDecoration(labelText: 'Method'),
-                  items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'card', child: Text('Card')),
-                    DropdownMenuItem(
-                      value: 'transfer',
-                      child: Text('Transfer'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: appointment,
+                    decoration: const InputDecoration(
+                      labelText: 'Appointment',
                     ),
-                    DropdownMenuItem(value: 'online', child: Text('Online')),
-                  ],
-                  onChanged: (value) =>
-                      setLocal(() => method = value ?? 'cash'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: type,
-                  decoration: const InputDecoration(labelText: 'Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'payment', child: Text('Payment')),
-                    DropdownMenuItem(value: 'deposit', child: Text('Deposit')),
-                  ],
-                  onChanged: (value) =>
-                      setLocal(() => type = value ?? 'payment'),
-                ),
-              ],
+                    items: appointments.map((item) {
+                      final customer =
+                          (item['customers'] as Map?)?['name'] ?? 'Customer';
+                      return DropdownMenuItem<String>(
+                        value: item['id'],
+                        child: Text(
+                          '$customer • ${DateTime.parse(item['starts_at']).toLocal()}',
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: onAppointmentChanged,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amount,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Amount (minor units)',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: method,
+                    decoration: const InputDecoration(labelText: 'Method'),
+                    items: const [
+                      DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                      DropdownMenuItem(value: 'card', child: Text('Card')),
+                      DropdownMenuItem(
+                        value: 'transfer',
+                        child: Text('Transfer'),
+                      ),
+                      DropdownMenuItem(value: 'online', child: Text('Online')),
+                    ],
+                    onChanged: (value) =>
+                        setLocal(() => method = value ?? 'cash'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: type,
+                    decoration: const InputDecoration(labelText: 'Type'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'payment',
+                        child: Text('Payment'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'deposit',
+                        child: Text('Deposit'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setLocal(() => type = value ?? 'payment'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: couponCode,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: 'Coupon code (optional)',
+                    ),
+                  ),
+                  if (membershipDiscountPercent != null)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: applyMembershipDiscount,
+                      onChanged: (v) =>
+                          setLocal(() => applyMembershipDiscount = v ?? false),
+                      title: Text(
+                        'Apply active membership discount '
+                        '($membershipDiscountPercent% off)',
+                      ),
+                    ),
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: saving ? null : () => Navigator.pop(context),
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: () => Navigator.pop(
-                  context,
-                  appointment != null &&
-                      int.tryParse(amount.text.trim()) != null,
-                ),
+                onPressed: saving ? null : save,
                 child: const Text('Save'),
               ),
             ],
@@ -191,27 +331,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
       ),
     );
 
-    if (ok != true) return;
-
-    try {
-      await Supabase.instance.client.rpc(
-        'record_payment',
-        params: {
-          'p_idempotency': const Uuid().v4(),
-          'p_appointment': appointment,
-          'p_amount': int.parse(amount.text.trim()),
-          'p_method': method,
-          'p_type': type,
-        },
-      );
-      await load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
-      }
-    }
+    await load();
   }
 
   @override

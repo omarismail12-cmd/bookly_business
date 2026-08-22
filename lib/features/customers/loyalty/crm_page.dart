@@ -281,13 +281,22 @@ class _CrmPageState extends ConsumerState<CrmPage> {
 
   Future<void> sendCampaign(String id) async {
     try {
+      final channel = campaigns.firstWhere((c) => c['id'] == id)['channel'];
       final queued = await Supabase.instance.client.rpc(
         'send_campaign',
         params: {'p_campaign': id},
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Campaign sent to $queued recipient(s).')),
+          SnackBar(
+            content: Text(
+              channel == 'push'
+                  ? 'Campaign sent to $queued recipient(s).'
+                  : '$queued recipient(s) generated, but $channel has no '
+                        'delivery provider configured — nothing was '
+                        'actually sent.',
+            ),
+          ),
         );
       }
       await load();
@@ -468,6 +477,17 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                         ),
                         trailing: cmp['status'] == 'sent'
                             ? const Icon(Icons.check_circle, color: Colors.green)
+                            : cmp['status'] == 'undeliverable'
+                            ? const Tooltip(
+                                message:
+                                    'Recipients were generated, but this '
+                                    'channel has no delivery provider '
+                                    'configured — nothing was actually sent.',
+                                child: Icon(
+                                  Icons.error_outline,
+                                  color: Colors.orange,
+                                ),
+                              )
                             : TextButton(
                                 onPressed: () => sendCampaign(cmp['id']),
                                 child: const Text('Send'),

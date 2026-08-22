@@ -1,6 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import 'test_helpers.dart';
@@ -10,14 +8,12 @@ import 'test_helpers.dart';
 /// PaymentsPage call — get_available_slots -> create_booking ->
 /// record_payment — with the result actually landing in Postgres, not just
 /// returning without error.
+///
+/// Run with `dart test integration_test` (not `flutter test` — see
+/// test_helpers.dart's doc comment for why).
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets('booking flow happy path: slot lookup -> booking -> payment', (
-    tester,
-  ) async {
-    await ensureSupabaseInitialized();
-    final client = Supabase.instance.client;
+  test('booking flow happy path: slot lookup -> booking -> payment', () async {
+    final client = ensureSupabaseInitialized();
 
     await signUpTestUser();
     final org = await createTestOrgWithService();

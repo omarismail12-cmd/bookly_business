@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase/supabase.dart';
+import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import 'test_helpers.dart';
@@ -8,6 +7,7 @@ import 'test_helpers.dart';
 typedef _Attempt = ({bool success, String? appointmentId, Object? error});
 
 Future<_Attempt> _attemptBooking({
+  required SupabaseClient client,
   required String orgId,
   required String customerId,
   required String staffId,
@@ -15,7 +15,7 @@ Future<_Attempt> _attemptBooking({
   required String startsAt,
 }) async {
   try {
-    final id = await Supabase.instance.client.rpc(
+    final id = await client.rpc(
       'create_booking',
       params: {
         'p_operation_id': const Uuid().v4(),
@@ -35,18 +35,18 @@ Future<_Attempt> _attemptBooking({
 
 /// Acceptance criterion (double-booking): two clients racing to book the
 /// same staff member's same time slot must not both succeed. The exclusion
-/// constraint `appointments_staff_no_overlap` (supabase/migrations/0001) is
-/// the actual guarantee under test — get_available_slots only prevents the
-/// *common* case client-side, the database constraint is what makes it safe
-/// under real concurrency.
+/// constraint `appointments_staff_no_overlap` (supabase/migrations/0001,
+/// hardened in 0008 to be buffer-aware) is the actual guarantee under test —
+/// get_available_slots only prevents the *common* case client-side, the
+/// database constraint is what makes it safe under real concurrency.
+///
+/// Run with `dart test integration_test` (not `flutter test` — see
+/// test_helpers.dart's doc comment for why).
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets(
+  test(
     'two simultaneous create_booking calls for the same slot: exactly one succeeds',
-    (tester) async {
-      await ensureSupabaseInitialized();
-      final client = Supabase.instance.client;
+    () async {
+      final client = ensureSupabaseInitialized();
 
       await signUpTestUser();
       final org = await createTestOrgWithService();
@@ -70,6 +70,7 @@ void main() {
       // so they race at the database rather than serializing client-side.
       final results = await Future.wait([
         _attemptBooking(
+          client: client,
           orgId: org.orgId,
           customerId: customerA,
           staffId: org.staffId,
@@ -77,6 +78,7 @@ void main() {
           startsAt: startsAt,
         ),
         _attemptBooking(
+          client: client,
           orgId: org.orgId,
           customerId: customerB,
           staffId: org.staffId,
@@ -95,12 +97,21 @@ void main() {
             'Exactly one of the two racing bookings should succeed; got '
             '${succeeded.length} successes and ${failed.length} failures.',
       );
+      // The loser fails one of two ways depending on exact timing, both
+      // correct: if its own get_available_slots() pre-check runs after the
+      // winner's row is already visible, create_booking() rejects it with
+      // SLOT_NOT_AVAILABLE before even attempting the insert; if the
+      // pre-checks for both race ahead of either insert, the loser reaches
+      // the insert and the appointments_staff_no_overlap exclusion
+      // constraint raises SLOT_ALREADY_BOOKED instead. Either way, exactly
+      // one booking exists — verified by the two asserts above/below.
       expect(
         failed.single.error.toString(),
-        contains('SLOT_ALREADY_BOOKED'),
+        anyOf(contains('SLOT_ALREADY_BOOKED'), contains('SLOT_NOT_AVAILABLE')),
         reason:
-            'The loser should fail with SLOT_ALREADY_BOOKED, raised by '
-            'create_booking() when the exclusion constraint fires.',
+            'The loser should be rejected by either the exclusion '
+            'constraint (SLOT_ALREADY_BOOKED) or the pre-check '
+            '(SLOT_NOT_AVAILABLE) — not silently succeed.',
       );
 
       // And the database agrees: only one confirmed appointment for this
@@ -110,7 +121,12 @@ void main() {
           .select()
           .eq('staff_id', org.staffId)
           .eq('starts_at', startsAt)
-          .inFilter('status', ['pending', 'confirmed', 'checked_in', 'in_service']);
+          .inFilter('status', [
+            'pending',
+            'confirmed',
+            'checked_in',
+            'in_service',
+          ]);
       expect(rows.length, 1);
     },
   );

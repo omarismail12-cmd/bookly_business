@@ -33,10 +33,11 @@ class SyncService {
   final SupabaseClient client;
   final SyncQueueStore store;
   final ValueNotifier<int> pendingCount = ValueNotifier(0);
+  final ValueNotifier<int> failedCount = ValueNotifier(0);
   StreamSubscription<List<ConnectivityResult>>? _sub;
 
   SyncService(this.client, this.store) {
-    _refreshPendingCount();
+    _refreshCounts();
     _sub = Connectivity().onConnectivityChanged.listen((results) {
       if (!results.contains(ConnectivityResult.none)) drain();
     });
@@ -44,11 +45,12 @@ class SyncService {
 
   Future<void> enqueue(SyncOperation op) async {
     await store.enqueue(op);
-    await _refreshPendingCount();
+    await _refreshCounts();
   }
 
-  Future<void> _refreshPendingCount() async {
+  Future<void> _refreshCounts() async {
     pendingCount.value = await store.pendingCount();
+    failedCount.value = await store.failedCount();
   }
 
   Future<void> drain() async {
@@ -72,11 +74,21 @@ class SyncService {
         await store.markFailed(op.operationId, '$e');
       }
     }
-    await _refreshPendingCount();
+    await _refreshCounts();
+  }
+
+  /// Gives operations that exhausted their automatic retries (status
+  /// 'failed') a fresh set of attempts, then immediately drains them —
+  /// the only way a failed offline write ever gets un-stuck, since [drain]
+  /// itself only ever looks at 'pending' rows.
+  Future<void> retryFailed() async {
+    await store.resetFailed();
+    await drain();
   }
 
   void dispose() {
     _sub?.cancel();
     pendingCount.dispose();
+    failedCount.dispose();
   }
 }

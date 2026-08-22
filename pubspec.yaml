@@ -57,6 +57,12 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  # Plain (non-Flutter) Supabase client + test runner for integration_test/
+  # — see the doc comment at the top of integration_test/test_helpers.dart
+  # for why these tests can't use supabase_flutter or run under
+  # `flutter test`, and must run via `dart test integration_test` instead.
+  supabase: ^2.16.1
+  test: ^1.25.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

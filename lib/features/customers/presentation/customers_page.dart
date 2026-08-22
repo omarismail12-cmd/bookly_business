@@ -176,26 +176,40 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     body: ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.pageTitleCustomers,
-                style: Theme.of(context).textTheme.headlineSmall,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final title = Text(
+              l10n.pageTitleCustomers,
+              style: Theme.of(context).textTheme.headlineSmall,
+            );
+            final searchField = TextField(
+              controller: search,
+              onChanged: onSearchChanged,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: l10n.commonSearch,
               ),
-            ),
-            SizedBox(
-              width: 250,
-              child: TextField(
-                controller: search,
-                onChanged: onSearchChanged,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: l10n.commonSearch,
-                ),
-              ),
-            ),
-          ],
+            );
+            // A fixed 250px search box next to the title only has room to
+            // breathe on a tablet/desktop-width layout — on a narrow phone
+            // it would squeeze the title into a sliver, so stack instead.
+            if (constraints.maxWidth < 480) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  title,
+                  const SizedBox(height: 12),
+                  searchField,
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: title),
+                SizedBox(width: 250, child: searchField),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
         if (loading)
