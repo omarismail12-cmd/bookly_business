@@ -42,6 +42,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navReports => 'التقارير';
 
   @override
+  String get navLocations => 'الفروع';
+
+  @override
+  String get navToday => 'اليوم';
+
+  @override
+  String get navMore => 'المزيد';
+
+  @override
   String get loginTitle => 'تسجيل الدخول';
 
   @override
@@ -189,6 +198,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pageTitleCustomers => 'العملاء';
 
   @override
+  String get pageTitleLocations => 'الفروع';
+
+  @override
+  String get staffPortalTitle => 'اليوم';
+
+  @override
   String get queueEmpty => 'لا يوجد عملاء في الانتظار.';
 
   @override
@@ -208,6 +223,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get crmCreateCampaign => 'حملة';
+
+  @override
+  String get locationsAddLocation => 'فرع';
+
+  @override
+  String get locationsEmpty => 'لا توجد فروع بعد.';
+
+  @override
+  String get staffPortalEmpty => 'لا توجد مواعيد اليوم.';
 
   @override
   String get customerPortalWelcome => 'مرحبًا بعودتك';

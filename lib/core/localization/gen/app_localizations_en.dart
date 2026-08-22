@@ -42,6 +42,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navReports => 'Reports';
 
   @override
+  String get navLocations => 'Locations';
+
+  @override
+  String get navToday => 'Today';
+
+  @override
+  String get navMore => 'More';
+
+  @override
   String get loginTitle => 'Sign in';
 
   @override
@@ -191,6 +200,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pageTitleCustomers => 'Customers';
 
   @override
+  String get pageTitleLocations => 'Locations';
+
+  @override
+  String get staffPortalTitle => 'Today';
+
+  @override
   String get queueEmpty => 'No customers are waiting.';
 
   @override
@@ -210,6 +225,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get crmCreateCampaign => 'Campaign';
+
+  @override
+  String get locationsAddLocation => 'Location';
+
+  @override
+  String get locationsEmpty => 'No locations yet.';
+
+  @override
+  String get staffPortalEmpty => 'No appointments today.';
 
   @override
   String get customerPortalWelcome => 'Welcome back';

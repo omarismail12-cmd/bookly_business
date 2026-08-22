@@ -10,6 +10,7 @@ import '../../../core/security/org_context.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../../shared/widgets/async_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import 'customer_detail_dialog.dart';
 
 const _pageSize = 25;
@@ -197,7 +198,11 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
           ],
         ),
         const SizedBox(height: 12),
-        if (loading) const LinearProgressIndicator(),
+        if (loading)
+          for (int i = 0; i < 6; i++) ...[
+            const SkeletonCard(),
+            const SizedBox(height: 12),
+          ],
         if (!loading && rows.isEmpty)
           Card(
             child: Padding(

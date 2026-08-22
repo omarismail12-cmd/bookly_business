@@ -12,6 +12,9 @@
   "navCrm": "إدارة العملاء",
   "navOffers": "العروض",
   "navReports": "التقارير",
+  "navLocations": "الفروع",
+  "navToday": "اليوم",
+  "navMore": "المزيد",
 
   "loginTitle": "تسجيل الدخول",
   "loginEmail": "البريد الإلكتروني",
@@ -66,6 +69,8 @@
   "pageTitleReports": "التقارير",
   "pageTitleOffers": "الباقات والعضويات والكوبونات",
   "pageTitleCustomers": "العملاء",
+  "pageTitleLocations": "الفروع",
+  "staffPortalTitle": "اليوم",
 
   "queueEmpty": "لا يوجد عملاء في الانتظار.",
   "queueAddWalkIn": "عميل بدون حجز",
@@ -74,6 +79,9 @@
   "servicesAddService": "إضافة",
   "crmAddCustomer": "عميل",
   "crmCreateCampaign": "حملة",
+  "locationsAddLocation": "فرع",
+  "locationsEmpty": "لا توجد فروع بعد.",
+  "staffPortalEmpty": "لا توجد مواعيد اليوم.",
 
   "customerPortalWelcome": "مرحبًا بعودتك",
   "customerPortalTagline": "سجّل الدخول لإدارة حجوزاتك.",

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/widgets/skeleton.dart';
 
 /// Catalog management for packages, memberships and coupons. Selling a
 /// package/membership to a specific customer, or redeeming a coupon,
@@ -68,6 +69,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
   List<Map<String, dynamic>> services = [];
   bool loading = true;
   String? organizationId;
+  String currency = 'USD';
 
   @override
   void initState() {
@@ -79,6 +81,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
     final o = await ref.read(activeOrganizationProvider.future);
     organizationId = o;
     if (o == null) return;
+    currency = await ref.read(activeCurrencyProvider.future);
     final c = Supabase.instance.client;
     final r = await c
         .from('packages')
@@ -188,7 +191,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
       child: const Icon(Icons.add),
     ),
     body: loading
-        ? const Center(child: CircularProgressIndicator())
+        ? const SkeletonList(itemCount: 5, leadingCircle: false)
         : ListView(
             padding: const EdgeInsets.all(16),
             children: rows.isEmpty
@@ -205,7 +208,10 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                               '${r['active'] == false ? ' • inactive' : ''}',
                             ),
                             trailing: Text(
-                              formatMinor((r['price_minor'] as num).toInt()),
+                              formatMinor(
+                                (r['price_minor'] as num).toInt(),
+                                currency: currency,
+                              ),
                             ),
                           ),
                         ),
@@ -225,6 +231,7 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
   List<Map<String, dynamic>> rows = [];
   bool loading = true;
   String? organizationId;
+  String currency = 'USD';
 
   @override
   void initState() {
@@ -236,6 +243,7 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
     final o = await ref.read(activeOrganizationProvider.future);
     organizationId = o;
     if (o == null) return;
+    currency = await ref.read(activeCurrencyProvider.future);
     final r = await Supabase.instance.client
         .from('memberships')
         .select()
@@ -320,7 +328,7 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
       child: const Icon(Icons.add),
     ),
     body: loading
-        ? const Center(child: CircularProgressIndicator())
+        ? const SkeletonList(itemCount: 5, leadingCircle: false)
         : ListView(
             padding: const EdgeInsets.all(16),
             children: rows.isEmpty
@@ -335,7 +343,10 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
                               '${r['active'] == false ? ' • inactive' : ''}',
                             ),
                             trailing: Text(
-                              formatMinor((r['price_minor'] as num).toInt()),
+                              formatMinor(
+                                (r['price_minor'] as num).toInt(),
+                                currency: currency,
+                              ),
                             ),
                           ),
                         ),
@@ -355,6 +366,7 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
   List<Map<String, dynamic>> rows = [];
   bool loading = true;
   String? organizationId;
+  String currency = 'USD';
 
   @override
   void initState() {
@@ -366,6 +378,7 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
     final o = await ref.read(activeOrganizationProvider.future);
     organizationId = o;
     if (o == null) return;
+    currency = await ref.read(activeCurrencyProvider.future);
     final r = await Supabase.instance.client
         .from('coupons')
         .select()
@@ -445,7 +458,7 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
       child: const Icon(Icons.add),
     ),
     body: loading
-        ? const Center(child: CircularProgressIndicator())
+        ? const SkeletonList(itemCount: 5, leadingCircle: false)
         : ListView(
             padding: const EdgeInsets.all(16),
             children: rows.isEmpty
@@ -466,6 +479,7 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
                                   : formatMinor(
                                       ((r['discount_minor'] as num?) ?? 0)
                                           .toInt(),
+                                      currency: currency,
                                     ),
                             ),
                           ),

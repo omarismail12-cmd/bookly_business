@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/widgets/skeleton.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -11,11 +12,16 @@ class CalendarPage extends ConsumerStatefulWidget {
   ConsumerState<CalendarPage> createState() => _CalendarPageState();
 }
 
+const _pageSize = 20;
+
 class _CalendarPageState extends ConsumerState<CalendarPage> {
   DateTime day = DateTime.now();
   bool week = false, loading = true;
   List<Map<String, dynamic>> rows = [];
   RealtimeChannel? channel;
+  String currency = 'USD';
+  int page = 0;
+  bool hasMore = false;
   @override
   void initState() {
     super.initState();
@@ -48,6 +54,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   Future<void> load() async {
     final o = await ref.read(activeOrganizationProvider.future);
     if (o == null) return;
+    currency = await ref.read(activeCurrencyProvider.future);
     final start = DateTime(day.year, day.month, day.day);
     final from = week
         ? start.subtract(Duration(days: start.weekday - 1))
@@ -63,13 +70,24 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         .eq('organization_id', o)
         .gte('starts_at', from.toUtc().toIso8601String())
         .lt('starts_at', to.toUtc().toIso8601String())
-        .order('starts_at');
+        .order('starts_at')
+        .range(page * _pageSize, page * _pageSize + _pageSize - 1);
     if (channel == null) await subscribe(o);
     if (mounted)
       setState(() {
         rows = List<Map<String, dynamic>>.from(result);
+        hasMore = rows.length == _pageSize;
         loading = false;
       });
+  }
+
+  void goto({DateTime? newDay, bool? newWeek}) {
+    setState(() {
+      if (newDay != null) day = newDay;
+      if (newWeek != null) week = newWeek;
+      page = 0;
+    });
+    load();
   }
 
   Future<void> setStatus(String id, String value) async {
@@ -141,7 +159,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Center(child: CircularProgressIndicator());
+    if (loading) {
+      return const SkeletonList(
+        itemCount: 6,
+        itemHeight: 76,
+        leadingCircle: false,
+        padding: EdgeInsets.all(16),
+      );
+    }
     final from = week ? day.subtract(Duration(days: day.weekday - 1)) : day;
     return Column(
       children: [
@@ -152,12 +177,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             spacing: 8,
             children: [
               IconButton(
-                onPressed: () {
-                  setState(
-                    () => day = day.subtract(Duration(days: week ? 7 : 1)),
-                  );
-                  load();
-                },
+                onPressed: () => goto(
+                  newDay: day.subtract(Duration(days: week ? 7 : 1)),
+                ),
                 icon: const Icon(Icons.chevron_left),
               ),
               Text(
@@ -170,25 +192,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 ),
               ),
               IconButton(
-                onPressed: () {
-                  setState(() => day = day.add(Duration(days: week ? 7 : 1)));
-                  load();
-                },
+                onPressed: () =>
+                    goto(newDay: day.add(Duration(days: week ? 7 : 1))),
                 icon: const Icon(Icons.chevron_right),
               ),
               FilterChip(
                 label: const Text('Week view'),
                 selected: week,
-                onSelected: (v) {
-                  setState(() => week = v);
-                  load();
-                },
+                onSelected: (v) => goto(newWeek: v),
               ),
               OutlinedButton(
-                onPressed: () {
-                  setState(() => day = DateTime.now());
-                  load();
-                },
+                onPressed: () => goto(newDay: DateTime.now()),
                 child: const Text('Today'),
               ),
             ],
@@ -199,18 +213,18 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             onRefresh: load,
             child: ListView(
               padding: const EdgeInsets.all(16),
-              children: rows.isEmpty
-                  ? [
-                      const Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Center(
-                            child: Text('No appointments for this period.'),
-                          ),
-                        ),
+              children: [
+                if (rows.isEmpty)
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(
+                        child: Text('No appointments for this period.'),
                       ),
-                    ]
-                  : rows.map((row) {
+                    ),
+                  )
+                else
+                  ...rows.map((row) {
                       final customer =
                           (row['customers'] as Map?)?['name'] ?? 'Customer';
                       final staff =
@@ -225,7 +239,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           title: Text(customer),
                           subtitle: Text(
                             '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} • $staff • $statusLabel'
-                            '${depositDue > 0 ? ' • deposit due ${formatMinor(depositDue.toInt())}' : ''}',
+                            '${depositDue > 0 ? ' • deposit due ${formatMinor(depositDue.toInt(), currency: currency)}' : ''}',
                           ),
                           trailing: PopupMenuButton<String>(
                             onSelected: (v) {
@@ -266,7 +280,38 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
+                if (page > 0 || hasMore)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: page > 0
+                              ? () {
+                                  setState(() => page--);
+                                  load();
+                                }
+                              : null,
+                          child: const Text('Previous'),
+                        ),
+                        const SizedBox(width: 16),
+                        Text('Page ${page + 1}'),
+                        const SizedBox(width: 16),
+                        TextButton(
+                          onPressed: hasMore
+                              ? () {
+                                  setState(() => page++);
+                                  load();
+                                }
+                              : null,
+                          child: const Text('Next'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
         ),

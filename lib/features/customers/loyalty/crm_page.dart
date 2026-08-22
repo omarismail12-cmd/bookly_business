@@ -5,11 +5,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/widgets/skeleton.dart';
 
 /// Maps the UI's segment filter keys to the keys understood by the
 /// customer_segment() RPC (supabase/migrations/0003, 0010), so a campaign's
 /// stored segment can later be expanded server-side via
 /// generate_campaign_recipients().
+const _pageSize = 25;
+
 const Map<String, String> _segmentToDbKey = {
   'all': 'all',
   'vip': 'vip',
@@ -33,6 +36,9 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   String segment = 'all';
   bool loading = true;
   String? organizationId;
+  String currency = 'USD';
+  int page = 0;
+  bool hasMore = false;
 
   @override
   void initState() {
@@ -44,15 +50,21 @@ class _CrmPageState extends ConsumerState<CrmPage> {
     final o = await ref.read(activeOrganizationProvider.future);
     organizationId = o;
     if (o == null) return;
+    currency = await ref.read(activeCurrencyProvider.future);
 
     final c = Supabase.instance.client;
-    final r = await c
+    // Only the "all" segment is server-paginated; the other segments filter
+    // client-side over a capped batch, so paginating them would make counts
+    // (e.g. "3 customers" for a VIP page) misleading.
+    var query = c
         .from('customers')
         .select()
         .eq('organization_id', o)
         .isFilter('deleted_at', null)
-        .order('name')
-        .limit(500);
+        .order('name');
+    final r = segment == 'all'
+        ? await query.range(page * _pageSize, page * _pageSize + _pageSize - 1)
+        : await query.limit(500);
 
     final ids = List<Map<String, dynamic>>.from(
       r,
@@ -80,11 +92,20 @@ class _CrmPageState extends ConsumerState<CrmPage> {
     if (mounted) {
       setState(() {
         customers = List<Map<String, dynamic>>.from(r);
+        hasMore = segment == 'all' && customers.length == _pageSize;
         points = p;
         campaigns = List<Map<String, dynamic>>.from(camp);
         loading = false;
       });
     }
+  }
+
+  void changeSegment(String value) {
+    setState(() {
+      segment = value;
+      page = 0;
+    });
+    load();
   }
 
   List<Map<String, dynamic>> get filtered {
@@ -299,7 +320,13 @@ class _CrmPageState extends ConsumerState<CrmPage> {
       label: Text(l10n.crmAddCustomer),
     ),
     body: loading
-        ? const Center(child: CircularProgressIndicator())
+        ? SkeletonList(
+            itemCount: 6,
+            header: Text(
+              l10n.pageTitleCrm,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+          )
         : RefreshIndicator(
             onRefresh: load,
             child: ListView(
@@ -327,32 +354,32 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                     ChoiceChip(
                       label: const Text('All'),
                       selected: segment == 'all',
-                      onSelected: (_) => setState(() => segment = 'all'),
+                      onSelected: (_) => changeSegment('all'),
                     ),
                     ChoiceChip(
                       label: const Text('VIP'),
                       selected: segment == 'vip',
-                      onSelected: (_) => setState(() => segment = 'vip'),
+                      onSelected: (_) => changeSegment('vip'),
                     ),
                     ChoiceChip(
                       label: const Text('Inactive 30d'),
                       selected: segment == 'inactive',
-                      onSelected: (_) => setState(() => segment = 'inactive'),
+                      onSelected: (_) => changeSegment('inactive'),
                     ),
                     ChoiceChip(
                       label: const Text('No-show risk'),
                       selected: segment == 'no_show',
-                      onSelected: (_) => setState(() => segment = 'no_show'),
+                      onSelected: (_) => changeSegment('no_show'),
                     ),
                     ChoiceChip(
                       label: const Text('First visit'),
                       selected: segment == 'first',
-                      onSelected: (_) => setState(() => segment = 'first'),
+                      onSelected: (_) => changeSegment('first'),
                     ),
                     ChoiceChip(
                       label: const Text('Birthday this month'),
                       selected: segment == 'birthday',
-                      onSelected: (_) => setState(() => segment = 'birthday'),
+                      onSelected: (_) => changeSegment('birthday'),
                     ),
                   ],
                 ),
@@ -386,6 +413,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                           Text(
                             formatMinor(
                               (x['total_spent_minor'] as num? ?? 0).toInt(),
+                              currency: currency,
                             ),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
@@ -394,6 +422,36 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                     ),
                   );
                 }),
+                if (segment == 'all' && (page > 0 || hasMore))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: page > 0
+                              ? () {
+                                  setState(() => page--);
+                                  load();
+                                }
+                              : null,
+                          child: Text(l10n.commonPrevious),
+                        ),
+                        const SizedBox(width: 16),
+                        Text('Page ${page + 1}'),
+                        const SizedBox(width: 16),
+                        TextButton(
+                          onPressed: hasMore
+                              ? () {
+                                  setState(() => page++);
+                                  load();
+                                }
+                              : null,
+                          child: Text(l10n.commonNext),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (campaigns.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Text(

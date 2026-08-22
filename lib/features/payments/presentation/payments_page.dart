@@ -11,8 +11,10 @@ import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/formatters/currency.dart';
+import '../../../../shared/widgets/skeleton.dart';
 
 final _pdfService = PdfDocumentService();
+const _pageSize = 20;
 
 class PaymentsPage extends ConsumerStatefulWidget {
   const PaymentsPage({super.key});
@@ -26,6 +28,9 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
   List<dynamic> appointments = [];
   bool loading = true;
   String businessName = 'Bookly Business';
+  String currency = 'USD';
+  int page = 0;
+  bool hasMore = false;
 
   @override
   void initState() {
@@ -46,7 +51,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
         .select('*,appointments(customers(name))')
         .eq('organization_id', organizationId)
         .order('created_at', ascending: false)
-        .limit(100);
+        .range(page * _pageSize, page * _pageSize + _pageSize - 1);
 
     final appointmentsList = await client
         .from('appointments')
@@ -65,8 +70,10 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
 
     setState(() {
       rows = List<Map<String, dynamic>>.from(payments);
+      hasMore = rows.length == _pageSize;
       appointments = List<dynamic>.from(appointmentsList);
       businessName = membership?.organizationName ?? businessName;
+      currency = membership?.currency ?? currency;
       loading = false;
     });
   }
@@ -88,7 +95,10 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
             'customerName': customer.toString(),
             'method': '${row['method']}',
             'type': '${row['type']}',
-            'amount': formatMinor((row['amount_minor'] as num).toInt()),
+            'amount': formatMinor(
+              (row['amount_minor'] as num).toInt(),
+              currency: currency,
+            ),
           },
         ),
       ),
@@ -214,7 +224,14 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
         label: Text(l10n.paymentsAddPayment),
       ),
       body: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? SkeletonList(
+              itemCount: 6,
+              leadingCircle: false,
+              header: Text(
+                l10n.pageTitlePayments,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            )
           : RefreshIndicator(
               onRefresh: load,
               child: ListView(
@@ -242,6 +259,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                             Text(
                               formatMinor(
                                 (row['amount_minor'] as num).toInt(),
+                                currency: currency,
                               ),
                             ),
                             IconButton(
@@ -254,6 +272,36 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                       ),
                     );
                   }),
+                  if (page > 0 || hasMore)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton(
+                            onPressed: page > 0
+                                ? () {
+                                    setState(() => page--);
+                                    load();
+                                  }
+                                : null,
+                            child: Text(l10n.commonPrevious),
+                          ),
+                          const SizedBox(width: 16),
+                          Text('Page ${page + 1}'),
+                          const SizedBox(width: 16),
+                          TextButton(
+                            onPressed: hasMore
+                                ? () {
+                                    setState(() => page++);
+                                    load();
+                                  }
+                                : null,
+                            child: Text(l10n.commonNext),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -10,15 +10,23 @@ on a Supabase (PostgreSQL, Auth, Storage, Edge Functions) backend.
 lib/
   app/            router, root widget
   core/           config, errors, security, permissions, localization, sync, theme
-  features/       feature-first: auth, organisations, dashboard, appointments,
-                   queue, customers, services, staff, payments, packages
-                   (packages/memberships/coupons catalog), customers/loyalty (CRM),
-                   reports
-  shared/         formatters, validators, widgets
+  features/       feature-first: auth, organisations (incl. locations management),
+                   dashboard, appointments (booking + calendar), queue, customers
+                   (incl. customers/loyalty for CRM/loyalty/campaigns), services,
+                   staff (incl. breaks/blocked time), staff_portal (staff "Today"
+                   view), payments, packages (packages/memberships/coupons
+                   catalog), reports
+  shared/         formatters, validators, widgets (incl. skeleton loading)
 supabase/
-  migrations/     numbered, additive SQL migrations (run in order, 0001..0010)
+  migrations/     numbered, additive SQL migrations (run in order, 0001..0022)
   functions/      Edge Functions (notifications-worker, send-push)
 ```
+
+Feature folders follow `data` (Supabase/local data sources) / `domain` (models) /
+`presentation` (widgets, pages) where the feature needs all three; simple
+CRUD-over-RLS screens (e.g. `organisations/presentation`, `locations/presentation`)
+talk to Supabase directly from `presentation` without a separate data/domain
+layer.
 
 Business logic and authorization live in the database (RPCs + RLS), not in
 the Flutter client — the client calls `security definer` RPCs for every

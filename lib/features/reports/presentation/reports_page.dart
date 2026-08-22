@@ -8,8 +8,10 @@ import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/formatters/currency.dart';
+import '../../../../shared/widgets/skeleton.dart';
 
 final _pdfService = PdfDocumentService();
+const _staffPageSize = 10;
 
 class ReportsPage extends ConsumerStatefulWidget {
   const ReportsPage({super.key});
@@ -22,6 +24,11 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   bool loading = true;
   String range = 'month';
   String businessName = 'Bookly Business';
+  String currency = 'USD';
+  // report_dashboard() returns the whole staff_performance array in one
+  // RPC call (it's an aggregate, not a paginatable table query) — this
+  // page then reveals it a page at a time instead of a real range() query.
+  int staffPage = 0;
 
   @override
   void initState() {
@@ -30,7 +37,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   }
 
   Future<void> load() async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      staffPage = 0;
+    });
     final o = await ref.read(activeOrganizationProvider.future);
     if (o == null) return;
     final membership = await ref.read(activeMembershipProvider.future);
@@ -53,6 +63,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       setState(() {
         d = Map<String, dynamic>.from(r);
         businessName = membership?.organizationName ?? businessName;
+        currency = membership?.currency ?? currency;
         loading = false;
       });
     }
@@ -72,7 +83,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             'appointments': d['appointments'] ?? 0,
             'completed': d['completed'] ?? 0,
             'noShow': d['no_show'] ?? 0,
-            'revenue': formatMinor((d['revenue_minor'] as num?)?.toInt() ?? 0),
+            'revenue': formatMinor(
+              (d['revenue_minor'] as num?)?.toInt() ?? 0,
+              currency: currency,
+            ),
             'staffPerformance': staffPerformance
                 .map(
                   (s) => {
@@ -81,6 +95,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     'no_show': s['no_show'],
                     'revenue': formatMinor(
                       (s['revenue_minor'] as num? ?? 0).toInt(),
+                      currency: currency,
                     ),
                   },
                 )
@@ -93,7 +108,20 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   @override
   Widget build(BuildContext c) {
-    if (loading) return const Center(child: CircularProgressIndicator());
+    if (loading) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          SkeletonBox(width: 180, height: 28),
+          SizedBox(height: 20),
+          SkeletonStatRow(count: 3),
+          SizedBox(height: 24),
+          SkeletonCard(leadingCircle: false, height: 76),
+          SizedBox(height: 12),
+          SkeletonCard(leadingCircle: false, height: 76),
+        ],
+      );
+    }
     final staffPerformance = List<Map<String, dynamic>>.from(
       d['staff_performance'] ?? [],
     );
@@ -143,7 +171,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           _row('Completed', d['completed']),
           _row('Cancelled', d['cancelled']),
           _row('No-shows', d['no_show']),
-          _row('Revenue', formatMinor((d['revenue_minor'] as num?)?.toInt() ?? 0)),
+          _row(
+            'Revenue',
+            formatMinor(
+              (d['revenue_minor'] as num?)?.toInt() ?? 0,
+              currency: currency,
+            ),
+          ),
           const SizedBox(height: 24),
           Text('Customers', style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -151,7 +185,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           _row('Repeat customers', customerMetrics['repeat_customers']),
           _row(
             'Average spend',
-            formatMinor((customerMetrics['avg_spend_minor'] as num?)?.toInt() ?? 0),
+            formatMinor(
+              (customerMetrics['avg_spend_minor'] as num?)?.toInt() ?? 0,
+              currency: currency,
+            ),
           ),
           const SizedBox(height: 24),
           Text('Campaigns', style: Theme.of(c).textTheme.titleMedium),
@@ -164,20 +201,35 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           Text('Staff performance', style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
           if (staffPerformance.isEmpty) const Text('No staff yet.'),
-          ...staffPerformance.map(
-            (s) => Card(
-              child: ListTile(
-                title: Text(s['display_name'] ?? ''),
-                subtitle: Text(
-                  '${s['completed']} completed • ${s['no_show']} no-shows',
+          ...staffPerformance
+              .take((staffPage + 1) * _staffPageSize)
+              .map(
+                (s) => Card(
+                  child: ListTile(
+                    title: Text(s['display_name'] ?? ''),
+                    subtitle: Text(
+                      '${s['completed']} completed • ${s['no_show']} no-shows',
+                    ),
+                    trailing: Text(
+                      formatMinor(
+                        (s['revenue_minor'] as num? ?? 0).toInt(),
+                        currency: currency,
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-                trailing: Text(
-                  formatMinor((s['revenue_minor'] as num? ?? 0).toInt()),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+          if (staffPerformance.length > (staffPage + 1) * _staffPageSize)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Center(
+                child: TextButton(
+                  onPressed: () => setState(() => staffPage++),
+                  child: const Text('Load more'),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../shared/widgets/skeleton.dart';
+import 'staff_schedule_page.dart';
 
 class StaffPage extends ConsumerStatefulWidget {
   const StaffPage({super.key});
@@ -73,80 +75,11 @@ class _StaffPageState extends ConsumerState<StaffPage> {
   }
 
   Future<void> schedule(String id, String name) async {
-    int day = DateTime.now().weekday % 7;
-    TimeOfDay start = const TimeOfDay(hour: 9, minute: 0),
-        end = const TimeOfDay(hour: 17, minute: 0);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: Text('Schedule • $name'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                value: day,
-                decoration: const InputDecoration(labelText: 'Day'),
-                items: const [
-                  DropdownMenuItem(value: 1, child: Text('Monday')),
-                  DropdownMenuItem(value: 2, child: Text('Tuesday')),
-                  DropdownMenuItem(value: 3, child: Text('Wednesday')),
-                  DropdownMenuItem(value: 4, child: Text('Thursday')),
-                  DropdownMenuItem(value: 5, child: Text('Friday')),
-                  DropdownMenuItem(value: 6, child: Text('Saturday')),
-                  DropdownMenuItem(value: 0, child: Text('Sunday')),
-                ],
-                onChanged: (v) => setLocal(() => day = v ?? 1),
-              ),
-              ListTile(
-                title: Text('Start: ${start.format(context)}'),
-                onTap: () async {
-                  final x = await showTimePicker(
-                    context: context,
-                    initialTime: start,
-                  );
-                  if (x != null) setLocal(() => start = x);
-                },
-              ),
-              ListTile(
-                title: Text('End: ${end.format(context)}'),
-                onTap: () async {
-                  final x = await showTimePicker(
-                    context: context,
-                    initialTime: end,
-                  );
-                  if (x != null) setLocal(() => end = x);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StaffSchedulePage(staffId: id, staffName: name),
       ),
     );
-    if (ok != true) return;
-    final fmt = (TimeOfDay t) =>
-        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
-    await supabase.from('working_hours').upsert({
-      'staff_id': id,
-      'weekday': day,
-      'start_time': fmt(start),
-      'end_time': fmt(end),
-    }, onConflict: 'staff_id,weekday');
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Schedule saved')));
-    }
   }
 
   Future<void> assignRole() async {
@@ -230,7 +163,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
             )
           : null,
       body: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonList(itemCount: 6)
           : RefreshIndicator(
               onRefresh: load,
               child: ListView(

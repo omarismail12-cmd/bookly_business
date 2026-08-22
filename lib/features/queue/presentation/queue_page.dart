@@ -4,6 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/widgets/async_state.dart';
+import '../../../../shared/widgets/skeleton.dart';
+
+const _pageSize = 20;
 
 class QueuePage extends ConsumerStatefulWidget {
   const QueuePage({super.key});
@@ -17,6 +20,8 @@ class _QueuePageState extends ConsumerState<QueuePage> {
   List<Map<String, dynamic>> services = [];
   List<Map<String, dynamic>> staff = [];
   bool loading = true;
+  int page = 0;
+  bool hasMore = false;
   @override
   void initState() {
     super.initState();
@@ -32,7 +37,8 @@ class _QueuePageState extends ConsumerState<QueuePage> {
         .select('*,customers(name),services(name),staff(display_name)')
         .eq('organization_id', o)
         .inFilter('status', ['waiting', 'called', 'in_service'])
-        .order('queue_number');
+        .order('queue_number')
+        .range(page * _pageSize, page * _pageSize + _pageSize - 1);
     final cu = await c
         .from('customers')
         .select('id,name')
@@ -54,6 +60,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
     if (mounted)
       setState(() {
         rows = List<Map<String, dynamic>>.from(r);
+        hasMore = rows.length == _pageSize;
         customers = List<Map<String, dynamic>>.from(cu);
         services = List<Map<String, dynamic>>.from(se);
         staff = List<Map<String, dynamic>>.from(st);
@@ -173,7 +180,14 @@ class _QueuePageState extends ConsumerState<QueuePage> {
       label: Text(l10n.queueAddWalkIn),
     ),
     body: loading
-        ? const Center(child: CircularProgressIndicator())
+        ? SkeletonList(
+            itemCount: 5,
+            itemHeight: 76,
+            header: Text(
+              l10n.pageTitleQueue,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+          )
         : RefreshIndicator(
             onRefresh: load,
             child: ListView(
@@ -224,6 +238,36 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                     ),
                   );
                 }),
+                if (!loading && (page > 0 || hasMore))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: page > 0
+                              ? () {
+                                  setState(() => page--);
+                                  load();
+                                }
+                              : null,
+                          child: Text(l10n.commonPrevious),
+                        ),
+                        const SizedBox(width: 16),
+                        Text('Page ${page + 1}'),
+                        const SizedBox(width: 16),
+                        TextButton(
+                          onPressed: hasMore
+                              ? () {
+                                  setState(() => page++);
+                                  load();
+                                }
+                              : null,
+                          child: Text(l10n.commonNext),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),

@@ -5,11 +5,13 @@ class OrganizationMembership {
   final String organizationId;
   final String organizationName;
   final String timezone;
+  final String currency;
   final String role;
   const OrganizationMembership({
     required this.organizationId,
     required this.organizationName,
     required this.timezone,
+    required this.currency,
     required this.role,
   });
 }
@@ -23,7 +25,9 @@ Future<OrganizationMembership?> fetchActiveMembership() async {
   if (uid == null) return null;
   final rows = await Supabase.instance.client
       .from('organization_members')
-      .select('organization_id,role,organizations(id,name,timezone,status)')
+      .select(
+        'organization_id,role,organizations(id,name,timezone,currency,status)',
+      )
       .eq('user_id', uid)
       .eq('status', 'active')
       .limit(1);
@@ -35,6 +39,7 @@ Future<OrganizationMembership?> fetchActiveMembership() async {
     organizationId: row['organization_id'] as String,
     organizationName: org['name']?.toString() ?? 'Bookly Business',
     timezone: org['timezone']?.toString() ?? 'UTC',
+    currency: org['currency']?.toString() ?? 'USD',
     role: row['role']?.toString() ?? 'staff',
   );
 }
@@ -49,4 +54,9 @@ final activeOrganizationProvider = FutureProvider<String?>((ref) async {
 
 final activeRoleProvider = FutureProvider<String?>((ref) async {
   return (await ref.watch(activeMembershipProvider.future))?.role;
+});
+
+final activeCurrencyProvider = FutureProvider<String>((ref) async {
+  return (await ref.watch(activeMembershipProvider.future))?.currency ??
+      'USD';
 });

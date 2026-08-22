@@ -33,6 +33,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
   late final TextEditingController notes;
   final coupon = TextEditingController();
   bool savingNotes = false;
+  String currency = 'USD';
 
   bool get canTransact =>
       widget.role == 'owner' ||
@@ -60,6 +61,11 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
 
   Future<void> load() async {
     final c = Supabase.instance.client;
+    final org = await c
+        .from('organizations')
+        .select('currency')
+        .eq('id', organizationId)
+        .maybeSingle();
     final loyalty = await c
         .from('loyalty_accounts')
         .select('points')
@@ -89,6 +95,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
         .order('name');
     if (!mounted) return;
     setState(() {
+      currency = (org?['currency'] as String?) ?? currency;
       points = ((loyalty as Map?)?['points'] as num?)?.toInt() ?? 0;
       packages = List<Map<String, dynamic>>.from(pkgs);
       memberships = List<Map<String, dynamic>>.from(mems);
@@ -186,7 +193,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
                       (p) => DropdownMenuItem(
                         value: p['id'] as String,
                         child: Text(
-                          '${p['name']} • ${formatMinor((p['price_minor'] as num).toInt())}',
+                          '${p['name']} • ${formatMinor((p['price_minor'] as num).toInt(), currency: currency)}',
                         ),
                       ),
                     )
@@ -263,7 +270,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
                       (m) => DropdownMenuItem(
                         value: m['id'] as String,
                         child: Text(
-                          '${m['name']} • ${formatMinor((m['price_minor'] as num).toInt())}',
+                          '${m['name']} • ${formatMinor((m['price_minor'] as num).toInt(), currency: currency)}',
                         ),
                       ),
                     )
@@ -337,7 +344,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
       final discount = pct != null
           ? '$pct% off'
           : minor != null
-          ? '${formatMinor((minor as num).toInt())} off'
+          ? '${formatMinor((minor as num).toInt(), currency: currency)} off'
           : 'applied';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -392,6 +399,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
                             'Total spent',
                             formatMinor(
                               (c['total_spent_minor'] as num? ?? 0).toInt(),
+                              currency: currency,
                             ),
                           ),
                           _stat('No-shows', '${c['no_show_count'] ?? 0}'),

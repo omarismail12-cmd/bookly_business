@@ -17,6 +17,8 @@ import '../../payments/presentation/payments_page.dart';
 import '../../customers/loyalty/crm_page.dart';
 import '../../packages/presentation/offers_page.dart';
 import '../../reports/presentation/reports_page.dart';
+import '../../locations/presentation/locations_page.dart';
+import '../../staff_portal/presentation/staff_today_page.dart';
 import '../../../shared/widgets/sync_status_banner.dart';
 import 'organization_setup_page.dart';
 
@@ -81,6 +83,40 @@ class _BusinessShellState extends State<BusinessShell> {
 
   Future<void> logout() => Supabase.instance.client.auth.signOut();
 
+  Future<void> openMoreSheet(List<_NavItem> overflow, int firstIndex) async {
+    final l10n = AppLocalizations.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  l10n.navMore,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ),
+            for (int i = 0; i < overflow.length; i++)
+              ListTile(
+                leading: Icon(overflow[i].icon),
+                title: Text(overflow[i].label),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  setState(() => index = firstIndex + i);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading)
@@ -103,6 +139,12 @@ class _BusinessShellState extends State<BusinessShell> {
     final role = AppRole.values.byName(membership!.role);
     final l10n = AppLocalizations.of(context);
     items = [
+      _NavItem(
+        l10n.staffPortalTitle,
+        Icons.today_outlined,
+        const StaffTodayPage(),
+        (r) => r == AppRole.staff,
+      ),
       _NavItem(
         l10n.navDashboard,
         Icons.dashboard_outlined,
@@ -131,6 +173,12 @@ class _BusinessShellState extends State<BusinessShell> {
         l10n.navServices,
         Icons.cut,
         const ServicesPage(),
+        (r) => r == AppRole.owner || r == AppRole.manager,
+      ),
+      _NavItem(
+        l10n.navLocations,
+        Icons.storefront_outlined,
+        const LocationsPage(),
         (r) => r == AppRole.owner || r == AppRole.manager,
       ),
       _NavItem(
@@ -175,14 +223,6 @@ class _BusinessShellState extends State<BusinessShell> {
           appBar: AppBar(
             title: Text(membership!.organizationName),
             actions: [
-              if (!wide)
-                PopupMenuButton<int>(
-                  onSelected: (v) => setState(() => index = v),
-                  itemBuilder: (_) => [
-                    for (int i = 0; i < items.length; i++)
-                      PopupMenuItem(value: i, child: Text(items[i].label)),
-                  ],
-                ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(child: Text(role.name)),
@@ -198,7 +238,7 @@ class _BusinessShellState extends State<BusinessShell> {
                   children: [
                     if (wide)
                       NavigationRail(
-                        selectedIndex: index < 5 ? index : 0,
+                        selectedIndex: index,
                         onDestinationSelected: (v) => setState(() => index = v),
                         labelType: NavigationRailLabelType.all,
                         destinations: items
@@ -217,24 +257,46 @@ class _BusinessShellState extends State<BusinessShell> {
               ),
             ],
           ),
-          bottomNavigationBar: wide
-              ? null
-              : NavigationBar(
-                  selectedIndex: index < 5 ? index : 0,
-                  onDestinationSelected: (v) => setState(() => index = v),
-                  destinations: items
-                      .take(5)
-                      .map(
-                        (x) => NavigationDestination(
-                          icon: Icon(x.icon),
-                          selectedIcon: Icon(x.icon),
-                          label: x.label,
-                        ),
-                      )
-                      .toList(),
-                ),
+          bottomNavigationBar: wide ? null : _buildBottomNav(l10n),
         );
       },
+    );
+  }
+
+  /// Mobile bottom nav: the first 4 sections get their own tab; anything
+  /// beyond that collapses into a 5th "More" tab that opens a bottom sheet
+  /// listing the rest — instead of hiding them behind an AppBar popup menu
+  /// with no persistent affordance.
+  Widget _buildBottomNav(AppLocalizations l10n) {
+    final needsMore = items.length > 5;
+    final visible = needsMore ? items.take(4).toList() : items;
+    final overflow = needsMore ? items.skip(4).toList() : const <_NavItem>[];
+    final selected = !needsMore
+        ? index
+        : (index < 4 ? index : 4);
+    return NavigationBar(
+      selectedIndex: selected,
+      onDestinationSelected: (v) {
+        if (v < visible.length) {
+          setState(() => index = v);
+        } else {
+          openMoreSheet(overflow, 4);
+        }
+      },
+      destinations: [
+        for (final x in visible)
+          NavigationDestination(
+            icon: Icon(x.icon),
+            selectedIcon: Icon(x.icon),
+            label: x.label,
+          ),
+        if (needsMore)
+          NavigationDestination(
+            icon: const Icon(Icons.more_horiz),
+            selectedIcon: const Icon(Icons.more_horiz),
+            label: l10n.navMore,
+          ),
+      ],
     );
   }
 }

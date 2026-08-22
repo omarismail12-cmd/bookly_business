@@ -164,6 +164,24 @@ abstract class AppLocalizations {
   /// **'Reports'**
   String get navReports;
 
+  /// No description provided for @navLocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Locations'**
+  String get navLocations;
+
+  /// No description provided for @navToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get navToday;
+
+  /// No description provided for @navMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get navMore;
+
   /// No description provided for @loginTitle.
   ///
   /// In en, this message translates to:
@@ -452,6 +470,18 @@ abstract class AppLocalizations {
   /// **'Customers'**
   String get pageTitleCustomers;
 
+  /// No description provided for @pageTitleLocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Locations'**
+  String get pageTitleLocations;
+
+  /// No description provided for @staffPortalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get staffPortalTitle;
+
   /// No description provided for @queueEmpty.
   ///
   /// In en, this message translates to:
@@ -493,6 +523,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Campaign'**
   String get crmCreateCampaign;
+
+  /// No description provided for @locationsAddLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get locationsAddLocation;
+
+  /// No description provided for @locationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No locations yet.'**
+  String get locationsEmpty;
+
+  /// No description provided for @staffPortalEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No appointments today.'**
+  String get staffPortalEmpty;
 
   /// No description provided for @customerPortalWelcome.
   ///

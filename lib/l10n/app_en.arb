@@ -13,6 +13,9 @@
   "navCrm": "CRM",
   "navOffers": "Offers",
   "navReports": "Reports",
+  "navLocations": "Locations",
+  "navToday": "Today",
+  "navMore": "More",
 
   "loginTitle": "Sign in",
   "loginEmail": "Email",
@@ -70,6 +73,8 @@
   "pageTitleReports": "Reports",
   "pageTitleOffers": "Packages, Memberships & Coupons",
   "pageTitleCustomers": "Customers",
+  "pageTitleLocations": "Locations",
+  "staffPortalTitle": "Today",
 
   "queueEmpty": "No customers are waiting.",
   "queueAddWalkIn": "Walk-in",
@@ -78,6 +83,9 @@
   "servicesAddService": "Add",
   "crmAddCustomer": "Customer",
   "crmCreateCampaign": "Campaign",
+  "locationsAddLocation": "Location",
+  "locationsEmpty": "No locations yet.",
+  "staffPortalEmpty": "No appointments today.",
 
   "customerPortalWelcome": "Welcome back",
   "customerPortalTagline": "Sign in to manage your bookings.",

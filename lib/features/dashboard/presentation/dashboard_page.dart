@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/security/org_context.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/widgets/skeleton.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -14,6 +15,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   Map<String, dynamic>? data;
   bool loading = true;
+  String currency = 'USD';
   @override
   void initState() {
     super.initState();
@@ -23,6 +25,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   Future<void> load() async {
     final org = await ref.read(activeOrganizationProvider.future);
     if (org == null) return;
+    currency = await ref.read(activeCurrencyProvider.future);
     final now = DateTime.now();
     final d = await Supabase.instance.client.rpc(
       'report_dashboard',
@@ -50,7 +53,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   @override
   Widget build(BuildContext c) {
-    if (loading) return const Center(child: CircularProgressIndicator());
+    if (loading) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          SkeletonBox(width: 220, height: 28),
+          SizedBox(height: 20),
+          SkeletonStatRow(count: 4),
+          SizedBox(height: 24),
+          SkeletonCard(leadingCircle: false, height: 76),
+        ],
+      );
+    }
     final d = data ?? {};
     return RefreshIndicator(
       onRefresh: load,
@@ -75,7 +89,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               _card('No-shows', '${d['no_show'] ?? 0}', Icons.warning),
               _card(
                 'Revenue',
-                formatMinor((d['revenue_minor'] as num?)?.toInt() ?? 0),
+                formatMinor(
+                  (d['revenue_minor'] as num?)?.toInt() ?? 0,
+                  currency: currency,
+                ),
                 Icons.payments,
               ),
             ],

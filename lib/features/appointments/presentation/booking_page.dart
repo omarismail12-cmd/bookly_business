@@ -26,6 +26,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   bool messageIsError = false;
   String? businessName;
   String? businessTimezone;
+  String currency = 'USD';
   final name = TextEditingController(),
       email = TextEditingController(),
       phone = TextEditingController();
@@ -51,7 +52,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       if (isPublic) {
         final rows = await c
             .from('organizations')
-            .select('id,name,timezone')
+            .select('id,name,timezone,currency')
             .eq('slug', widget.publicSlug!)
             .eq('status', 'active')
             .limit(1);
@@ -59,8 +60,10 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         org = rows.first['id'];
         businessName = rows.first['name'];
         businessTimezone = rows.first['timezone'];
+        currency = (rows.first['currency'] as String?) ?? currency;
       } else {
         org = await ref.read(activeOrganizationProvider.future);
+        currency = await ref.read(activeCurrencyProvider.future);
       }
       if (org == null) throw Exception('No active business found.');
       final s = await c
@@ -263,7 +266,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                   (x) => DropdownMenuItem<String>(
                     value: (x['id'] as String),
                     child: Text(
-                      '${x['name']} • ${formatMinor((x['price_minor'] as num).toInt())}',
+                      '${x['name']} • ${formatMinor((x['price_minor'] as num).toInt(), currency: currency)}',
                     ),
                   ),
                 )
