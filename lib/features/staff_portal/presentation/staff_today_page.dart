@@ -107,7 +107,7 @@ class _StaffTodayPageState extends ConsumerState<StaffTodayPage> {
   Future<void> addOwnBlockedTime() async {
     final id = staffId;
     if (id == null) return;
-    final added = await showAddBlockedTimeDialog(context, staffId: id);
+    final added = await showAddBlockedTimeDialog(context, ref: ref, staffId: id);
     if (added && mounted) {
       ScaffoldMessenger.of(
         context,

@@ -3,12 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/formatters/currency.dart';
 import '../../../../shared/widgets/skeleton.dart';
+import '../data/reports_repository.dart';
+import '../domain/report_dashboard.dart';
 
 final _pdfService = PdfDocumentService();
 const _staffPageSize = 10;
@@ -20,7 +21,7 @@ class ReportsPage extends ConsumerStatefulWidget {
 }
 
 class _ReportsPageState extends ConsumerState<ReportsPage> {
-  Map<String, dynamic> d = {};
+  ReportDashboard d = ReportDashboard.fromMap(const {});
   bool loading = true;
   String range = 'month';
   String businessName = 'Bookly Business';
@@ -51,17 +52,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final to = range == 'week'
         ? from.add(const Duration(days: 7))
         : DateTime(now.year, now.month + 1, 1);
-    final r = await Supabase.instance.client.rpc(
-      'report_dashboard',
-      params: {
-        'p_org': o,
-        'p_from': from.toUtc().toIso8601String(),
-        'p_to': to.toUtc().toIso8601String(),
-      },
-    );
+    final r = await ref
+        .read(reportsRepositoryProvider)
+        .dashboard(organizationId: o, from: from, to: to);
     if (mounted) {
       setState(() {
-        d = Map<String, dynamic>.from(r);
+        d = r;
         businessName = membership?.organizationName ?? businessName;
         currency = membership?.currency ?? currency;
         loading = false;
@@ -70,31 +66,25 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   }
 
   Future<void> exportPdf() async {
-    final staffPerformance = List<Map<String, dynamic>>.from(
-      d['staff_performance'] ?? [],
-    );
     await Printing.layoutPdf(
       onLayout: (_) async => Uint8List.fromList(
         await _pdfService.createReport(
           data: {
             'businessName': businessName,
             'period': range == 'week' ? 'This week' : 'This month',
-            'occupancyPercent': d['occupancy_percent'] ?? 0,
-            'appointments': d['appointments'] ?? 0,
-            'completed': d['completed'] ?? 0,
-            'noShow': d['no_show'] ?? 0,
-            'revenue': formatMinor(
-              (d['revenue_minor'] as num?)?.toInt() ?? 0,
-              currency: currency,
-            ),
-            'staffPerformance': staffPerformance
+            'occupancyPercent': d.occupancyPercent,
+            'appointments': d.appointments,
+            'completed': d.completed,
+            'noShow': d.noShow,
+            'revenue': formatMinor(d.revenueMinor, currency: currency),
+            'staffPerformance': d.staffPerformance
                 .map(
                   (s) => {
-                    'display_name': s['display_name'],
-                    'completed': s['completed'],
-                    'no_show': s['no_show'],
+                    'display_name': s.displayName,
+                    'completed': s.completed,
+                    'no_show': s.noShow,
                     'revenue': formatMinor(
-                      (s['revenue_minor'] as num? ?? 0).toInt(),
+                      s.revenueMinor,
                       currency: currency,
                     ),
                   },
@@ -122,15 +112,9 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         ],
       );
     }
-    final staffPerformance = List<Map<String, dynamic>>.from(
-      d['staff_performance'] ?? [],
-    );
-    final customerMetrics = Map<String, dynamic>.from(
-      d['customer_metrics'] ?? {},
-    );
-    final campaignMetrics = Map<String, dynamic>.from(
-      d['campaign_metrics'] ?? {},
-    );
+    final staffPerformance = d.staffPerformance;
+    final customerMetrics = d.customerMetrics;
+    final campaignMetrics = d.campaignMetrics;
     return RefreshIndicator(
       onRefresh: load,
       child: ListView(
@@ -190,37 +174,31 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           const SizedBox(height: 16),
           Text('Occupancy & volume', style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _row('Occupancy', '${d['occupancy_percent'] ?? 0}%'),
-          _row('Appointments', d['appointments']),
-          _row('Completed', d['completed']),
-          _row('Cancelled', d['cancelled']),
-          _row('No-shows', d['no_show']),
+          _row('Occupancy', '${d.occupancyPercent}%'),
+          _row('Appointments', d.appointments),
+          _row('Completed', d.completed),
+          _row('Cancelled', d.cancelled),
+          _row('No-shows', d.noShow),
           _row(
             'Revenue',
-            formatMinor(
-              (d['revenue_minor'] as num?)?.toInt() ?? 0,
-              currency: currency,
-            ),
+            formatMinor(d.revenueMinor, currency: currency),
           ),
           const SizedBox(height: 24),
           Text('Customers', style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _row('New customers', d['customers']),
-          _row('Repeat customers', customerMetrics['repeat_customers']),
+          _row('New customers', d.customers),
+          _row('Repeat customers', customerMetrics.repeatCustomers),
           _row(
             'Average spend',
-            formatMinor(
-              (customerMetrics['avg_spend_minor'] as num?)?.toInt() ?? 0,
-              currency: currency,
-            ),
+            formatMinor(customerMetrics.avgSpendMinor, currency: currency),
           ),
           const SizedBox(height: 24),
           Text('Campaigns', style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _row('Campaigns sent', campaignMetrics['campaigns_sent']),
-          _row('Recipients', campaignMetrics['recipients']),
-          _row('Opened', campaignMetrics['opened']),
-          _row('Booked', campaignMetrics['booked']),
+          _row('Campaigns sent', campaignMetrics.campaignsSent),
+          _row('Recipients', campaignMetrics.recipients),
+          _row('Opened', campaignMetrics.opened),
+          _row('Booked', campaignMetrics.booked),
           const SizedBox(height: 24),
           Text('Staff performance', style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -230,15 +208,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               .map(
                 (s) => Card(
                   child: ListTile(
-                    title: Text(s['display_name'] ?? ''),
+                    title: Text(s.displayName),
                     subtitle: Text(
-                      '${s['completed']} completed • ${s['no_show']} no-shows',
+                      '${s.completed} completed • ${s.noShow} no-shows',
                     ),
                     trailing: Text(
-                      formatMinor(
-                        (s['revenue_minor'] as num? ?? 0).toInt(),
-                        currency: currency,
-                      ),
+                      formatMinor(s.revenueMinor, currency: currency),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),

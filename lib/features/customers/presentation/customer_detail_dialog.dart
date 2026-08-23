@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/sync/sync_models.dart';
+import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
 
 /// Customer 360 view: profile + notes, loyalty points, purchased packages
@@ -9,7 +12,7 @@ import '../../../shared/formatters/currency.dart';
 /// gated to owner/manager/receptionist to match the payments-taking role
 /// set used elsewhere (Permission.takePayments); everyone who can see the
 /// Customers page can view this dialog and edit notes.
-class CustomerDetailDialog extends StatefulWidget {
+class CustomerDetailDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic> customer;
   final String role;
 
@@ -20,10 +23,11 @@ class CustomerDetailDialog extends StatefulWidget {
   });
 
   @override
-  State<CustomerDetailDialog> createState() => _CustomerDetailDialogState();
+  ConsumerState<CustomerDetailDialog> createState() =>
+      _CustomerDetailDialogState();
 }
 
-class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
+class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
   bool loading = true;
   int points = 0;
   List<Map<String, dynamic>> packages = [];
@@ -105,18 +109,47 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
     });
   }
 
+  /// Local-first, conflict-checked edit (spec slide 9): queues through
+  /// SyncService instead of writing straight to Supabase, so editing notes
+  /// works offline. [baseVersion] is the customer's `version` column as
+  /// last loaded — if it's moved server-side by drain time, SyncService
+  /// parks the edit as a conflict instead of overwriting silently (see
+  /// SyncService._applyVersionedUpdate). A still-optimistic customer row
+  /// (just added, not yet synced) has no `version` yet, so the check is
+  /// simply skipped for that one edit — nothing to conflict against.
   Future<void> saveNotes() async {
     setState(() => savingNotes = true);
     try {
-      await Supabase.instance.client
-          .from('customers')
-          .update({'private_notes': notes.text.trim()})
-          .eq('id', customerId);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Notes saved.')));
-      }
+      final operationId = const Uuid().v4();
+      final baseVersion = (widget.customer['version'] as num?)?.toInt();
+      final sync = ref.read(syncServiceProvider);
+      await sync.enqueue(
+        SyncOperation(
+          operationId: operationId,
+          entity: 'customers',
+          entityId: customerId,
+          operation: 'update_customer_notes',
+          payload: {
+            'private_notes': notes.text.trim(),
+            if (baseVersion != null) '_base_version': baseVersion,
+          },
+        ),
+      );
+      await sync.drain();
+      if (!mounted) return;
+      final conflicted = (await sync.conflicts()).any(
+        (o) => o.operationId == operationId,
+      );
+      final stillPending = (await sync.store.pending()).any(
+        (o) => o.operationId == operationId,
+      );
+      if (!mounted) return;
+      final message = conflicted
+          ? 'These notes were changed elsewhere — resolve the conflict from the sync banner.'
+          : stillPending
+          ? "Offline — notes will sync when you're back online."
+          : 'Notes saved.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

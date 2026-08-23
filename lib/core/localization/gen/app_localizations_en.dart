@@ -255,6 +255,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navLoyalty => 'Loyalty';
 
   @override
+  String get navMyOffers => 'Offers';
+
+  @override
   String get findBusinessTitle => 'Book with a business';
 
   @override
@@ -278,4 +281,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String loyaltyPoints(String points) {
     return '$points points';
   }
+
+  @override
+  String get offersEmpty =>
+      'No offers right now — check back after your next visit!';
+
+  @override
+  String get offersForYou => 'For you';
+
+  @override
+  String get offersActiveCoupons => 'Active coupons';
 }

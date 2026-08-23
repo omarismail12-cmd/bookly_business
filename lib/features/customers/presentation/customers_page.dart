@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/local/local_store_provider.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../core/sync/sync_models.dart';
@@ -59,23 +60,62 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     role = await ref.read(activeRoleProvider.future) ?? 'staff';
     if (organization == null) return;
 
-    var query = Supabase.instance.client
-        .from('customers')
-        .select()
-        .eq('organization_id', organization)
-        .isFilter('deleted_at', null);
-    if (search.text.trim().isNotEmpty) {
-      query = query.ilike('name', '%${search.text.trim()}%');
-    }
-    final result = await query
-        .order('name')
-        .range(page * _pageSize, page * _pageSize + _pageSize - 1);
-    if (mounted) {
-      setState(() {
-        rows = List<Map<String, dynamic>>.from(result);
-        hasMore = rows.length == _pageSize;
-        loading = false;
-      });
+    final searchText = search.text.trim();
+    try {
+      var query = Supabase.instance.client
+          .from('customers')
+          .select()
+          .eq('organization_id', organization)
+          .isFilter('deleted_at', null);
+      if (searchText.isNotEmpty) {
+        query = query.ilike('name', '%$searchText%');
+      }
+      final result = await query
+          .order('name')
+          .range(page * _pageSize, page * _pageSize + _pageSize - 1);
+      if (mounted) {
+        setState(() {
+          rows = List<Map<String, dynamic>>.from(result);
+          hasMore = rows.length == _pageSize;
+          loading = false;
+        });
+      }
+    } catch (_) {
+      // Offline (or the request failed): fall back to the local mirror
+      // WorkspaceMirror keeps warm for this org (spec slide 9). Read-only —
+      // search/pagination still apply, just against whatever was cached on
+      // the last successful refresh.
+      final cached = await ref.read(localStoreProvider).list('customers');
+      var filtered = cached
+          .where(
+            (r) =>
+                r['organization_id'] == organization &&
+                r['deleted_at'] == null,
+          )
+          .toList();
+      if (searchText.isNotEmpty) {
+        filtered = filtered
+            .where(
+              (r) => (r['name'] as String? ?? '').toLowerCase().contains(
+                searchText.toLowerCase(),
+              ),
+            )
+            .toList();
+      }
+      filtered.sort(
+        (a, b) => (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? ''),
+      );
+      final pageRows = filtered
+          .skip(page * _pageSize)
+          .take(_pageSize)
+          .toList();
+      if (mounted) {
+        setState(() {
+          rows = pageRows;
+          hasMore = pageRows.length == _pageSize;
+          loading = false;
+        });
+      }
     }
   }
 

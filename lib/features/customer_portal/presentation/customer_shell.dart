@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../shared/widgets/sync_status_banner.dart';
 import 'customer_loyalty_page.dart';
+import 'customer_offers_page.dart';
 import 'find_business_page.dart';
 import 'my_appointments_page.dart';
 
@@ -31,12 +32,19 @@ class _CustomerShellState extends State<CustomerShell> {
       const MyAppointmentsPage(),
       const FindBusinessPage(),
       const CustomerLoyaltyPage(),
+      const CustomerOffersPage(),
     ];
-    final labels = [l10n.navMyAppointments, l10n.navFindBook, l10n.navLoyalty];
+    final labels = [
+      l10n.navMyAppointments,
+      l10n.navFindBook,
+      l10n.navLoyalty,
+      l10n.navMyOffers,
+    ];
     final icons = [
       Icons.event_note_outlined,
       Icons.add_circle_outline,
       Icons.card_giftcard_outlined,
+      Icons.local_offer_outlined,
     ];
     return Scaffold(
       appBar: AppBar(

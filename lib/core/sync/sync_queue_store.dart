@@ -19,4 +19,25 @@ abstract interface class SyncQueueStore {
   /// count, so the next drain() picks it up again. Called by a user-facing
   /// "Retry failed" action.
   Future<void> resetFailed();
+
+  /// Marks a queued non-financial edit as conflicted: the row's `version`
+  /// moved server-side between when the edit was queued and when drain()
+  /// tried to apply it (Phase 2 conflict handling). [serverSnapshotJson] is
+  /// the server's current row, stashed so the resolution UI can show
+  /// "theirs" without a second round trip.
+  Future<void> markConflict(String operationId, String serverSnapshotJson);
+
+  /// Operations awaiting a user's "keep mine / keep theirs" decision — never
+  /// retried by [pending]/drain on its own.
+  Future<List<SyncOperation>> conflicted();
+  Future<int> conflictCount();
+
+  /// User chose "keep mine": re-queues the operation with a flag telling
+  /// drain() to apply it unconditionally next time, skipping the version
+  /// check that produced the conflict.
+  Future<void> resolveKeepMine(String operationId);
+
+  /// User chose "keep theirs": drops the queued edit — the server's current
+  /// value wins and nothing is retried.
+  Future<void> resolveKeepTheirs(String operationId);
 }

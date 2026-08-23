@@ -106,11 +106,35 @@ void main() {
       expect(Permission.takePayments.allowedFor(AppRole.staff), isFalse);
     });
 
-    test('dashboard and calendar are visible to every role', () {
-      for (final role in AppRole.values) {
+    test('dashboard and calendar are visible to every business role', () {
+      const businessRoles = [
+        AppRole.owner,
+        AppRole.manager,
+        AppRole.receptionist,
+        AppRole.staff,
+      ];
+      for (final role in businessRoles) {
         expect(Permission.viewDashboard.allowedFor(role), isTrue);
         expect(Permission.manageCalendar.allowedFor(role), isTrue);
       }
     });
+
+    test(
+      'AppRole.customer gets no business permission, even ones every '
+      'business role has',
+      () {
+        for (final permission in Permission.values) {
+          expect(
+            permission.allowedFor(AppRole.customer),
+            isFalse,
+            reason:
+                '${permission.name} must be false for AppRole.customer — '
+                'the customer portal has no business-app UI to gate; a '
+                "customer's real capabilities are enforced by RLS "
+                '*_self_select policies, not this permission system.',
+          );
+        }
+      },
+    );
   });
 }

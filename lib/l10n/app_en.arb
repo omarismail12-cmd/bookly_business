@@ -93,6 +93,7 @@
   "navMyAppointments": "My Appointments",
   "navFindBook": "Book",
   "navLoyalty": "Loyalty",
+  "navMyOffers": "Offers",
   "findBusinessTitle": "Book with a business",
   "findBusinessHint": "Enter the business code your business gave you",
   "findBusinessGo": "Continue",
@@ -102,5 +103,8 @@
   "loyaltyPoints": "{points} points",
   "@loyaltyPoints": {
     "placeholders": {"points": {"type": "String"}}
-  }
+  },
+  "offersEmpty": "No offers right now — check back after your next visit!",
+  "offersForYou": "For you",
+  "offersActiveCoupons": "Active coupons"
 }

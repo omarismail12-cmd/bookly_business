@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../data/staff_schedule_repository.dart';
 
 /// Shared one-off "blocked time" (time off) creation dialog — used by the
 /// owner/manager staff schedule editor (StaffSchedulePage) and by staff
@@ -8,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Returns true if a row was inserted.
 Future<bool> showAddBlockedTimeDialog(
   BuildContext context, {
+  required WidgetRef ref,
   required String staffId,
 }) async {
   DateTime date = DateTime.now();
@@ -99,12 +102,12 @@ Future<bool> showAddBlockedTimeDialog(
     return false;
   }
   try {
-    await Supabase.instance.client.from('blocked_times').insert({
-      'staff_id': staffId,
-      'starts_at': startsAt.toUtc().toIso8601String(),
-      'ends_at': endsAt.toUtc().toIso8601String(),
-      'reason': reason.text.trim().isEmpty ? null : reason.text.trim(),
-    });
+    await ref.read(staffScheduleRepositoryProvider).addBlockedTime(
+      staffId: staffId,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      reason: reason.text.trim().isEmpty ? null : reason.text.trim(),
+    );
     return true;
   } catch (e) {
     if (context.mounted) {

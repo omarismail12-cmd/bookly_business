@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/widgets/async_state.dart';
 import '../../../../shared/widgets/skeleton.dart';
-
-const _pageSize = 20;
+import '../../services/data/services_repository.dart';
+import '../../staff/data/staff_repository.dart';
+import '../data/queue_repository.dart';
+import '../domain/queue_entry.dart';
 
 class QueuePage extends ConsumerStatefulWidget {
   const QueuePage({super.key});
@@ -15,7 +16,7 @@ class QueuePage extends ConsumerStatefulWidget {
 }
 
 class _QueuePageState extends ConsumerState<QueuePage> {
-  List<Map<String, dynamic>> rows = [];
+  List<QueueEntry> rows = [];
   List<Map<String, dynamic>> customers = [];
   List<Map<String, dynamic>> services = [];
   List<Map<String, dynamic>> staff = [];
@@ -31,49 +32,25 @@ class _QueuePageState extends ConsumerState<QueuePage> {
   Future<void> load() async {
     final o = await ref.read(activeOrganizationProvider.future);
     if (o == null) return;
-    final c = Supabase.instance.client;
-    final r = await c
-        .from('queue_entries')
-        .select('*,customers(name),services(name),staff(display_name)')
-        .eq('organization_id', o)
-        .inFilter('status', ['waiting', 'called', 'in_service'])
-        .order('queue_number')
-        .range(page * _pageSize, page * _pageSize + _pageSize - 1);
-    final cu = await c
-        .from('customers')
-        .select('id,name')
-        .eq('organization_id', o)
-        .isFilter('deleted_at', null)
-        .order('name');
-    final se = await c
-        .from('services')
-        .select('id,name')
-        .eq('organization_id', o)
-        .isFilter('deleted_at', null)
-        .order('name');
-    final st = await c
-        .from('staff')
-        .select('id,display_name')
-        .eq('organization_id', o)
-        .eq('status', 'active')
-        .order('display_name');
+    final queueRepo = ref.read(queueRepositoryProvider);
+    final r = await queueRepo.listActive(o, page: page);
+    final cu = await queueRepo.listCustomerIdName(o);
+    final se = await ref.read(servicesRepositoryProvider).listIdName(o);
+    final st = await ref.read(staffRepositoryProvider).listIdNameActive(o);
     if (mounted) {
       setState(() {
-        rows = List<Map<String, dynamic>>.from(r);
-        hasMore = rows.length == _pageSize;
-        customers = List<Map<String, dynamic>>.from(cu);
-        services = List<Map<String, dynamic>>.from(se);
-        staff = List<Map<String, dynamic>>.from(st);
+        rows = r;
+        hasMore = rows.length == queuePageSize;
+        customers = cu;
+        services = se;
+        staff = st;
         loading = false;
       });
     }
   }
 
   Future<void> advance(String id, String status) async {
-    await Supabase.instance.client.rpc(
-      'change_queue_status',
-      params: {'p_queue': id, 'p_status': status},
-    );
+    await ref.read(queueRepositoryProvider).changeStatus(queueId: id, status: status);
     await load();
   }
 
@@ -152,9 +129,10 @@ class _QueuePageState extends ConsumerState<QueuePage> {
     );
     if (ok != true) return;
     try {
-      final id = await Supabase.instance.client.rpc(
-        'add_walk_in',
-        params: {'p_customer': cId, 'p_service': sId, 'p_staff': stId},
+      final id = await ref.read(queueRepositoryProvider).addWalkIn(
+        customerId: cId!,
+        serviceId: sId!,
+        staffId: stId,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -209,19 +187,18 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                     ),
                   ),
                 ...rows.map((row) {
-                  final customer =
-                      (row['customers'] as Map?)?['name'] ?? 'Customer';
+                  final customer = row.customerName ?? 'Customer';
                   return Card(
                     child: ListTile(
                       leading: CircleAvatar(
-                        child: Text('${row['queue_number']}'),
+                        child: Text('${row.queueNumber}'),
                       ),
                       title: Text(customer),
                       subtitle: Text(
-                        '${(row['services'] as Map?)?['name'] ?? ''} • ${row['estimated_wait_min']} min',
+                        '${row.serviceName ?? ''} • ${row.estimatedWaitMin} min',
                       ),
                       trailing: PopupMenuButton<String>(
-                        onSelected: (s) => advance(row['id'], s),
+                        onSelected: (s) => advance(row.id, s),
                         itemBuilder: (_) => const [
                           PopupMenuItem(value: 'called', child: Text('Call')),
                           PopupMenuItem(

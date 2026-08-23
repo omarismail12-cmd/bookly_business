@@ -89,11 +89,15 @@
   "navMyAppointments": "مواعيدي",
   "navFindBook": "حجز",
   "navLoyalty": "الولاء",
+  "navMyOffers": "العروض",
   "findBusinessTitle": "احجز مع نشاط تجاري",
   "findBusinessHint": "أدخل رمز النشاط التجاري الذي حصلت عليه",
   "findBusinessGo": "متابعة",
   "findBusinessNotFound": "لم نتمكن من العثور على نشاط تجاري بهذا الرمز.",
   "myAppointmentsEmpty": "ليس لديك أي مواعيد بعد.",
   "loyaltyEmpty": "لا توجد مكافآت ولاء بعد — احجز زيارتك الأولى!",
-  "loyaltyPoints": "{points} نقطة"
+  "loyaltyPoints": "{points} نقطة",
+  "offersEmpty": "لا توجد عروض حاليًا — تحقق مرة أخرى بعد زيارتك القادمة!",
+  "offersForYou": "لك خصيصًا",
+  "offersActiveCoupons": "كوبونات نشطة"
 }

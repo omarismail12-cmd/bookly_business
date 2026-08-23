@@ -3,6 +3,12 @@ class SyncOperation {
   final Map<String, dynamic> payload;
   int retryCount;
   String status;
+
+  /// Free-form context for the current [status]: the error message while
+  /// `failed`, or the server's current row (JSON) while `conflict` — never
+  /// populated while `pending`/`synced`.
+  String? detail;
+
   SyncOperation({
     required this.operationId,
     required this.entity,
@@ -11,5 +17,6 @@ class SyncOperation {
     required this.payload,
     this.retryCount = 0,
     this.status = "pending",
+    this.detail,
   });
 }

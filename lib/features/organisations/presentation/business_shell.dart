@@ -1,12 +1,15 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/analytics/firebase_crash_reporting.dart';
+import '../../../core/local/local_store_factory.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/notifications/firebase_notification_service.dart';
 import '../../../core/permissions/app_role.dart';
 import '../../../core/security/org_context.dart';
+import '../../../core/sync/workspace_mirror.dart';
 import '../../dashboard/presentation/dashboard_page.dart';
 import '../../appointments/presentation/calendar_page.dart';
 import '../../queue/presentation/queue_page.dart';
@@ -44,10 +47,38 @@ class _BusinessShellState extends State<BusinessShell> {
   late List<_NavItem> items;
   final _notifications = FirebaseNotificationService();
 
+  // Local-first read mirror (spec slide 9): kept warm here, on the shell
+  // every business tab lives under, rather than inside SyncService (which
+  // stays deliberately unaware of "which org" — see its class doc) or each
+  // individual page (which would mean 6+ places independently deciding when
+  // to refresh the same cache).
+  final _mirror = WorkspaceMirror(Supabase.instance.client, createLocalStore());
+  Timer? _mirrorTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+
   @override
   void initState() {
     super.initState();
     load();
+    _mirrorTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _refreshMirror(),
+    );
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      if (!results.contains(ConnectivityResult.none)) _refreshMirror();
+    });
+  }
+
+  @override
+  void dispose() {
+    _mirrorTimer?.cancel();
+    _connectivitySub?.cancel();
+    super.dispose();
+  }
+
+  void _refreshMirror() {
+    final orgId = membership?.organizationId;
+    if (orgId != null) unawaited(_mirror.refresh(orgId));
   }
 
   Future<void> load() async {
@@ -68,6 +99,7 @@ class _BusinessShellState extends State<BusinessShell> {
       _registerForPush(m.organizationId);
       final uid = Supabase.instance.client.auth.currentUser?.id;
       crashReporting.setUser(uid);
+      _refreshMirror();
     }
   }
 

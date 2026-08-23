@@ -578,6 +578,12 @@ abstract class AppLocalizations {
   /// **'Loyalty'**
   String get navLoyalty;
 
+  /// No description provided for @navMyOffers.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers'**
+  String get navMyOffers;
+
   /// No description provided for @findBusinessTitle.
   ///
   /// In en, this message translates to:
@@ -619,6 +625,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{points} points'**
   String loyaltyPoints(String points);
+
+  /// No description provided for @offersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No offers right now — check back after your next visit!'**
+  String get offersEmpty;
+
+  /// No description provided for @offersForYou.
+  ///
+  /// In en, this message translates to:
+  /// **'For you'**
+  String get offersForYou;
+
+  /// No description provided for @offersActiveCoupons.
+  ///
+  /// In en, this message translates to:
+  /// **'Active coupons'**
+  String get offersActiveCoupons;
 }
 
 class _AppLocalizationsDelegate

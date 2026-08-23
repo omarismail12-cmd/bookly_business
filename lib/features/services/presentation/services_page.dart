@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../data/services_repository.dart';
+import '../domain/service.dart';
 
 class ServicesPage extends ConsumerStatefulWidget {
   const ServicesPage({super.key});
@@ -12,8 +13,9 @@ class ServicesPage extends ConsumerStatefulWidget {
 }
 
 class _ServicesPageState extends ConsumerState<ServicesPage> {
-  List<Map<String, dynamic>> rows = [];
+  List<Service> rows = [];
   bool loading = true;
+  String? organizationId;
 
   @override
   void initState() {
@@ -22,19 +24,17 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
   }
 
   Future<void> load() async {
-    final organizationId = await ref.read(activeOrganizationProvider.future);
-    if (organizationId == null) return;
+    final o = await ref.read(activeOrganizationProvider.future);
+    organizationId = o;
+    if (o == null) return;
 
-    final result = await Supabase.instance.client
-        .from('services')
-        .select()
-        .eq('organization_id', organizationId)
-        .isFilter('deleted_at', null)
-        .order('name');
+    final result = await ref
+        .read(servicesRepositoryProvider)
+        .listActive(o);
 
     if (mounted) {
       setState(() {
-        rows = List<Map<String, dynamic>>.from(result);
+        rows = result;
         loading = false;
       });
     }
@@ -93,16 +93,57 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
       ),
     );
     if (ok != true) return;
-    final organizationId = await ref.read(activeOrganizationProvider.future);
-    await Supabase.instance.client.from('services').insert({
-      'organization_id': organizationId,
-      'name': nameController.text.trim(),
-      'duration_min': int.parse(durationController.text),
-      'buffer_min': int.parse(bufferController.text),
-      'price_minor': int.parse(priceController.text),
-      'deposit_required_minor': int.tryParse(depositController.text) ?? 0,
-    });
+    final o = organizationId ?? await ref.read(activeOrganizationProvider.future);
+    if (o == null) return;
+    await ref.read(servicesRepositoryProvider).create(
+      organizationId: o,
+      name: nameController.text.trim(),
+      durationMin: int.parse(durationController.text),
+      bufferMin: int.parse(bufferController.text),
+      priceMinor: int.parse(priceController.text),
+      depositRequiredMinor: int.tryParse(depositController.text) ?? 0,
+    );
     load();
+  }
+
+  /// Local-first, conflict-checked edit (spec slide 9) — queues through
+  /// SyncService so it works offline; see
+  /// ServicesRepository.updateDescription for the version-conflict check.
+  Future<void> editDescription(Service row) async {
+    final controller = TextEditingController(text: row.description ?? '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Edit description • ${row.name}'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(labelText: 'Description'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(servicesRepositoryProvider).updateDescription(
+        serviceId: row.id,
+        description: controller.text.trim().isEmpty
+            ? null
+            : controller.text.trim(),
+        baseVersion: row.version,
+      );
+    } finally {
+      await load();
+    }
   }
 
   @override
@@ -126,12 +167,24 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
               ...rows.map(
                 (row) => Card(
                   child: ListTile(
-                    title: Text(row['name']),
+                    title: Text(row.name),
                     subtitle: Text(
-                      '${row['duration_min']} min • buffer ${row['buffer_min']} min'
-                      '${(row['deposit_required_minor'] as num? ?? 0) > 0 ? ' • deposit ${(row['deposit_required_minor'] as num) / 100}' : ''}',
+                      '${row.durationMin} min • buffer ${row.bufferMin} min'
+                      '${row.depositRequiredMinor > 0 ? ' • deposit ${row.depositRequiredMinor / 100}' : ''}'
+                      '${row.description != null && row.description!.isNotEmpty ? '\n${row.description}' : ''}',
                     ),
-                    trailing: Text('${(row['price_minor'] as num) / 100}'),
+                    isThreeLine: row.description != null && row.description!.isNotEmpty,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('${row.priceMinor / 100}'),
+                        IconButton(
+                          tooltip: 'Edit description',
+                          onPressed: () => editDescription(row),
+                          icon: const Icon(Icons.edit_outlined),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

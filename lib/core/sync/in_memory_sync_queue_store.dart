@@ -46,6 +46,7 @@ class InMemorySyncQueueStore implements SyncQueueStore {
             payload: Map<String, dynamic>.from(e['payload'] as Map),
             retryCount: e['retryCount'] as int? ?? 0,
             status: e['status'] as String? ?? 'pending',
+            detail: e['detail'] as String?,
           ),
         ),
       );
@@ -68,6 +69,7 @@ class InMemorySyncQueueStore implements SyncQueueStore {
                 'payload': o.payload,
                 'retryCount': o.retryCount,
                 'status': o.status,
+                'detail': o.detail,
               },
             )
             .toList(),
@@ -118,6 +120,39 @@ class InMemorySyncQueueStore implements SyncQueueStore {
       op.status = 'pending';
       op.retryCount = 0;
     }
+    _persist();
+  }
+
+  @override
+  Future<void> markConflict(String operationId, String serverSnapshotJson) async {
+    final op = _ops.firstWhere((o) => o.operationId == operationId);
+    op.status = 'conflict';
+    op.detail = serverSnapshotJson;
+    _persist();
+  }
+
+  @override
+  Future<List<SyncOperation>> conflicted() async =>
+      _ops.where((o) => o.status == 'conflict').toList();
+
+  @override
+  Future<int> conflictCount() async =>
+      _ops.where((o) => o.status == 'conflict').length;
+
+  @override
+  Future<void> resolveKeepMine(String operationId) async {
+    final op = _ops.firstWhere((o) => o.operationId == operationId);
+    op.payload['_force'] = true;
+    op.status = 'pending';
+    op.detail = null;
+    _persist();
+  }
+
+  @override
+  Future<void> resolveKeepTheirs(String operationId) async {
+    final op = _ops.firstWhere((o) => o.operationId == operationId);
+    op.status = 'synced';
+    op.detail = null;
     _persist();
   }
 }

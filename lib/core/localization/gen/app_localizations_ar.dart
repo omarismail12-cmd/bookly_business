@@ -253,6 +253,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navLoyalty => 'الولاء';
 
   @override
+  String get navMyOffers => 'العروض';
+
+  @override
   String get findBusinessTitle => 'احجز مع نشاط تجاري';
 
   @override
@@ -275,4 +278,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String loyaltyPoints(String points) {
     return '$points نقطة';
   }
+
+  @override
+  String get offersEmpty =>
+      'لا توجد عروض حاليًا — تحقق مرة أخرى بعد زيارتك القادمة!';
+
+  @override
+  String get offersForYou => 'لك خصيصًا';
+
+  @override
+  String get offersActiveCoupons => 'كوبونات نشطة';
 }

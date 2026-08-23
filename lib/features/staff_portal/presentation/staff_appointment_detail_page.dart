@@ -1,26 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../core/sync/sync_models.dart';
+import '../../../core/sync/sync_service.dart';
 
 /// Appointment detail for a staff member: read-only customer info, plus two
 /// editable free-text fields staff are expected to keep current —
 /// private_notes (general customer notes) and next_recommendation (what to
 /// suggest at the customer's next visit).
-class StaffAppointmentDetailPage extends StatefulWidget {
+///
+/// Local-first, conflict-checked (spec slide 9): saving queues through
+/// SyncService — the same `update_customer_notes` operation
+/// customer_detail_dialog.dart's private-notes edit uses (it now accepts
+/// both fields; see SyncService.drain) — instead of writing straight to
+/// Supabase, so it works offline and won't silently clobber an edit made
+/// elsewhere between page load and save.
+class StaffAppointmentDetailPage extends ConsumerStatefulWidget {
   final Map<String, dynamic> appointment;
   const StaffAppointmentDetailPage({super.key, required this.appointment});
 
   @override
-  State<StaffAppointmentDetailPage> createState() =>
+  ConsumerState<StaffAppointmentDetailPage> createState() =>
       _StaffAppointmentDetailPageState();
 }
 
 class _StaffAppointmentDetailPageState
-    extends State<StaffAppointmentDetailPage> {
+    extends ConsumerState<StaffAppointmentDetailPage> {
   final supabase = Supabase.instance.client;
   late final TextEditingController notes;
   late final TextEditingController recommendation;
   bool saving = false;
+  int? baseVersion;
 
   Map<String, dynamic>? get customer =>
       widget.appointment['customers'] as Map<String, dynamic>?;
@@ -35,6 +48,7 @@ class _StaffAppointmentDetailPageState
     recommendation = TextEditingController(
       text: (customer?['next_recommendation'] as String?) ?? '',
     );
+    baseVersion = (customer?['version'] as num?)?.toInt();
     _loadCustomerDetails();
   }
 
@@ -51,17 +65,21 @@ class _StaffAppointmentDetailPageState
     try {
       final row = await supabase
           .from('customers')
-          .select('private_notes,next_recommendation')
+          .select('private_notes,next_recommendation,version')
           .eq('id', id)
           .maybeSingle();
       if (row != null && mounted) {
         setState(() {
           notes.text = (row['private_notes'] as String?) ?? '';
           recommendation.text = (row['next_recommendation'] as String?) ?? '';
+          baseVersion = (row['version'] as num?)?.toInt() ?? baseVersion;
         });
       }
     } catch (_) {
-      // Fields fall back to whatever the appointment payload already had.
+      // Offline (or the request failed): fields fall back to whatever the
+      // appointment payload already had, and baseVersion to whatever was
+      // captured in initState — save() still works, just checked against
+      // that slightly older version.
     }
   }
 
@@ -70,18 +88,36 @@ class _StaffAppointmentDetailPageState
     if (id == null) return;
     setState(() => saving = true);
     try {
-      await supabase
-          .from('customers')
-          .update({
+      final operationId = const Uuid().v4();
+      final sync = ref.read(syncServiceProvider);
+      await sync.enqueue(
+        SyncOperation(
+          operationId: operationId,
+          entity: 'customers',
+          entityId: id,
+          operation: 'update_customer_notes',
+          payload: {
             'private_notes': notes.text.trim(),
             'next_recommendation': recommendation.text.trim(),
-          })
-          .eq('id', id);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Notes saved.')));
-      }
+            if (baseVersion != null) '_base_version': baseVersion,
+          },
+        ),
+      );
+      await sync.drain();
+      if (!mounted) return;
+      final conflicted = (await sync.conflicts()).any(
+        (o) => o.operationId == operationId,
+      );
+      final stillPending = (await sync.store.pending()).any(
+        (o) => o.operationId == operationId,
+      );
+      if (!mounted) return;
+      final message = conflicted
+          ? 'This customer was changed elsewhere — resolve the conflict from the sync banner.'
+          : stillPending
+          ? "Offline — will sync when you're back online."
+          : 'Notes saved.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/localization/gen/app_localizations.dart';
@@ -12,9 +11,10 @@ import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/formatters/currency.dart';
 import '../../../../shared/widgets/skeleton.dart';
+import '../data/payments_repository.dart';
+import '../domain/payment.dart';
 
 final _pdfService = PdfDocumentService();
-const _pageSize = 20;
 
 class PaymentsPage extends ConsumerStatefulWidget {
   const PaymentsPage({super.key});
@@ -24,7 +24,7 @@ class PaymentsPage extends ConsumerStatefulWidget {
 }
 
 class _PaymentsPageState extends ConsumerState<PaymentsPage> {
-  List<Map<String, dynamic>> rows = [];
+  List<Payment> rows = [];
   List<dynamic> appointments = [];
   bool loading = true;
   String businessName = 'Bookly Business';
@@ -45,32 +45,17 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     }
     final membership = await ref.read(activeMembershipProvider.future);
 
-    final client = Supabase.instance.client;
-    final payments = await client
-        .from('payments')
-        .select('*,appointments(customers(name))')
-        .eq('organization_id', organizationId)
-        .order('created_at', ascending: false)
-        .range(page * _pageSize, page * _pageSize + _pageSize - 1);
-
-    final appointmentsList = await client
-        .from('appointments')
-        .select('id,starts_at,customer_id,customers(name)')
-        .eq('organization_id', organizationId)
-        .inFilter('status', [
-          'confirmed',
-          'checked_in',
-          'in_service',
-          'completed',
-        ])
-        .order('starts_at', ascending: false)
-        .limit(100);
+    final repo = ref.read(paymentsRepositoryProvider);
+    final payments = await repo.listPage(organizationId, page: page);
+    final appointmentsList = await repo.listBookableAppointments(
+      organizationId,
+    );
 
     if (!mounted) return;
 
     setState(() {
-      rows = List<Map<String, dynamic>>.from(payments);
-      hasMore = rows.length == _pageSize;
+      rows = payments;
+      hasMore = rows.length == paymentsPageSize;
       appointments = List<dynamic>.from(appointmentsList);
       businessName = membership?.organizationName ?? businessName;
       currency = membership?.currency ?? currency;
@@ -78,27 +63,20 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     });
   }
 
-  Future<void> printReceipt(Map<String, dynamic> row) async {
-    final customer =
-        ((row['appointments'] as Map?)?['customers'] as Map?)?['name'] ??
-        'Customer';
-    final createdAt = row['created_at'] != null
-        ? DateTime.parse(row['created_at']).toLocal()
-        : DateTime.now();
+  Future<void> printReceipt(Payment row) async {
+    final customer = row.customerName ?? 'Customer';
+    final createdAt = row.createdAt.toLocal();
     await Printing.layoutPdf(
       onLayout: (_) async => Uint8List.fromList(
         await _pdfService.createReceipt(
           data: {
             'businessName': businessName,
-            'reference': (row['id'] as String).substring(0, 8),
+            'reference': row.id.substring(0, 8),
             'date': DateFormat.yMMMd().add_jm().format(createdAt),
-            'customerName': customer.toString(),
-            'method': '${row['method']}',
-            'type': '${row['type']}',
-            'amount': formatMinor(
-              (row['amount_minor'] as num).toInt(),
-              currency: currency,
-            ),
+            'customerName': customer,
+            'method': row.method,
+            'type': row.type,
+            'amount': formatMinor(row.amountMinor, currency: currency),
           },
         ),
       ),
@@ -109,18 +87,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
   /// membership_discount_percent (0011/0010) is stored on the row but
   /// nothing applies it automatically — this is the one place a staff
   /// member can pull it in before recording a payment.
-  Future<num?> _activeMembershipDiscount(String customerId) async {
-    final row = await Supabase.instance.client
-        .from('customer_memberships')
-        .select('memberships(discount_percent)')
-        .eq('customer_id', customerId)
-        .eq('status', 'active')
-        .gte('ends_at', DateTime.now().toUtc().toIso8601String())
-        .order('ends_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    return (row?['memberships'] as Map?)?['discount_percent'] as num?;
-  }
+  Future<num?> _activeMembershipDiscount(String customerId) =>
+      ref.read(paymentsRepositoryProvider).activeMembershipDiscount(customerId);
 
   Future<void> addPayment() async {
     String? appointment;
@@ -165,23 +133,19 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
             });
             try {
               var finalAmount = baseAmount;
-              final client = Supabase.instance.client;
+              final repo = ref.read(paymentsRepositoryProvider);
 
               if (couponCode.text.trim().isNotEmpty) {
                 final customerId = appointments.firstWhere(
                   (a) => a['id'] == appointment,
                 )['customer_id'] as String?;
                 final org = await ref.read(activeOrganizationProvider.future);
-                final result = await client.rpc(
-                  'redeem_coupon',
-                  params: {
-                    'p_org': org,
-                    'p_code': couponCode.text.trim(),
-                    'p_customer': customerId,
-                    'p_appointment': appointment,
-                  },
+                final data = await repo.redeemCoupon(
+                  organizationId: org!,
+                  code: couponCode.text.trim(),
+                  customerId: customerId,
+                  appointmentId: appointment!,
                 );
-                final data = Map<String, dynamic>.from(result as Map);
                 final pct = data['discount_percent'] as num?;
                 final minor = data['discount_minor'] as num?;
                 if (pct != null) {
@@ -201,15 +165,12 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                 throw Exception('Discounted amount must be greater than zero.');
               }
 
-              await client.rpc(
-                'record_payment',
-                params: {
-                  'p_idempotency': const Uuid().v4(),
-                  'p_appointment': appointment,
-                  'p_amount': finalAmount,
-                  'p_method': method,
-                  'p_type': type,
-                },
+              await repo.recordPayment(
+                idempotencyKey: const Uuid().v4(),
+                appointmentId: appointment!,
+                amountMinor: finalAmount,
+                method: method,
+                type: type,
               );
               if (context.mounted) Navigator.pop(context);
             } catch (e) {
@@ -363,22 +324,19 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   ),
                   const SizedBox(height: 12),
                   ...rows.map((row) {
-                    final customer =
-                        ((row['appointments'] as Map?)?['customers']
-                            as Map?)?['name'] ??
-                        'Customer';
+                    final customer = row.customerName ?? 'Customer';
                     return Card(
                       child: ListTile(
-                        title: Text(customer.toString()),
+                        title: Text(customer),
                         subtitle: Text(
-                          '${row['method']} • ${row['type']} • ${row['status']}',
+                          '${row.method} • ${row.type} • ${row.status}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               formatMinor(
-                                (row['amount_minor'] as num).toInt(),
+                                row.amountMinor,
                                 currency: currency,
                               ),
                             ),

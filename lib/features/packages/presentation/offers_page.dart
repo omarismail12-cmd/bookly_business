@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../../services/data/services_repository.dart';
+import '../data/packages_repository.dart';
+import '../domain/package_offer.dart';
 
 /// Catalog management for packages, memberships and coupons. Selling a
 /// package/membership to a specific customer, or redeeming a coupon,
@@ -65,7 +67,7 @@ class _PackagesTab extends ConsumerStatefulWidget {
 }
 
 class _PackagesTabState extends ConsumerState<_PackagesTab> {
-  List<Map<String, dynamic>> rows = [];
+  List<PackageOffer> rows = [];
   List<Map<String, dynamic>> services = [];
   bool loading = true;
   String? organizationId;
@@ -82,22 +84,12 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
     organizationId = o;
     if (o == null) return;
     currency = await ref.read(activeCurrencyProvider.future);
-    final c = Supabase.instance.client;
-    final r = await c
-        .from('packages')
-        .select('*,services(name)')
-        .eq('organization_id', o)
-        .order('name');
-    final s = await c
-        .from('services')
-        .select('id,name')
-        .eq('organization_id', o)
-        .isFilter('deleted_at', null)
-        .order('name');
+    final r = await ref.read(packagesRepositoryProvider).listPackages(o);
+    final s = await ref.read(servicesRepositoryProvider).listIdName(o);
     if (mounted) {
       setState(() {
-        rows = List<Map<String, dynamic>>.from(r);
-        services = List<Map<String, dynamic>>.from(s);
+        rows = r;
+        services = s;
         loading = false;
       });
     }
@@ -173,14 +165,14 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
       ),
     );
     if (ok != true || organizationId == null) return;
-    await Supabase.instance.client.from('packages').insert({
-      'organization_id': organizationId,
-      'name': name.text.trim(),
-      'service_id': serviceId,
-      'price_minor': int.tryParse(price.text.trim()) ?? 0,
-      'total_uses': int.tryParse(uses.text.trim()) ?? 1,
-      'expires_days': int.tryParse(expires.text.trim()),
-    });
+    await ref.read(packagesRepositoryProvider).createPackage(
+      organizationId: organizationId!,
+      name: name.text.trim(),
+      serviceId: serviceId,
+      priceMinor: int.tryParse(price.text.trim()) ?? 0,
+      totalUses: int.tryParse(uses.text.trim()) ?? 1,
+      expiresDays: int.tryParse(expires.text.trim()),
+    );
     load();
   }
 
@@ -200,18 +192,15 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                       .map(
                         (r) => Card(
                           child: ListTile(
-                            title: Text(r['name']),
+                            title: Text(r.name),
                             subtitle: Text(
-                              '${(r['services'] as Map?)?['name'] ?? 'Any service'} • '
-                              '${r['total_uses']} uses'
-                              '${r['expires_days'] != null ? ' • expires in ${r['expires_days']}d' : ''}'
-                              '${r['active'] == false ? ' • inactive' : ''}',
+                              '${r.serviceName ?? 'Any service'} • '
+                              '${r.totalUses} uses'
+                              '${r.expiresDays != null ? ' • expires in ${r.expiresDays}d' : ''}'
+                              '${!r.active ? ' • inactive' : ''}',
                             ),
                             trailing: Text(
-                              formatMinor(
-                                (r['price_minor'] as num).toInt(),
-                                currency: currency,
-                              ),
+                              formatMinor(r.priceMinor, currency: currency),
                             ),
                           ),
                         ),
@@ -228,7 +217,7 @@ class _MembershipsTab extends ConsumerStatefulWidget {
 }
 
 class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
-  List<Map<String, dynamic>> rows = [];
+  List<Membership> rows = [];
   bool loading = true;
   String? organizationId;
   String currency = 'USD';
@@ -244,14 +233,10 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
     organizationId = o;
     if (o == null) return;
     currency = await ref.read(activeCurrencyProvider.future);
-    final r = await Supabase.instance.client
-        .from('memberships')
-        .select()
-        .eq('organization_id', o)
-        .order('name');
+    final r = await ref.read(packagesRepositoryProvider).listMemberships(o);
     if (mounted) {
       setState(() {
-        rows = List<Map<String, dynamic>>.from(r);
+        rows = r;
         loading = false;
       });
     }
@@ -311,13 +296,13 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
       ),
     );
     if (ok != true || organizationId == null) return;
-    await Supabase.instance.client.from('memberships').insert({
-      'organization_id': organizationId,
-      'name': name.text.trim(),
-      'price_minor': int.tryParse(price.text.trim()) ?? 0,
-      'discount_percent': double.tryParse(discount.text.trim()) ?? 0,
-      'duration_days': int.tryParse(duration.text.trim()) ?? 30,
-    });
+    await ref.read(packagesRepositoryProvider).createMembership(
+      organizationId: organizationId!,
+      name: name.text.trim(),
+      priceMinor: int.tryParse(price.text.trim()) ?? 0,
+      discountPercent: double.tryParse(discount.text.trim()) ?? 0,
+      durationDays: int.tryParse(duration.text.trim()) ?? 30,
+    );
     load();
   }
 
@@ -337,16 +322,13 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
                       .map(
                         (r) => Card(
                           child: ListTile(
-                            title: Text(r['name']),
+                            title: Text(r.name),
                             subtitle: Text(
-                              '${r['discount_percent']}% off • ${r['duration_days']} days'
-                              '${r['active'] == false ? ' • inactive' : ''}',
+                              '${r.discountPercent}% off • ${r.durationDays} days'
+                              '${!r.active ? ' • inactive' : ''}',
                             ),
                             trailing: Text(
-                              formatMinor(
-                                (r['price_minor'] as num).toInt(),
-                                currency: currency,
-                              ),
+                              formatMinor(r.priceMinor, currency: currency),
                             ),
                           ),
                         ),
@@ -363,7 +345,7 @@ class _CouponsTab extends ConsumerStatefulWidget {
 }
 
 class _CouponsTabState extends ConsumerState<_CouponsTab> {
-  List<Map<String, dynamic>> rows = [];
+  List<Coupon> rows = [];
   bool loading = true;
   String? organizationId;
   String currency = 'USD';
@@ -379,14 +361,10 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
     organizationId = o;
     if (o == null) return;
     currency = await ref.read(activeCurrencyProvider.future);
-    final r = await Supabase.instance.client
-        .from('coupons')
-        .select()
-        .eq('organization_id', o)
-        .order('code');
+    final r = await ref.read(packagesRepositoryProvider).listCoupons(o);
     if (mounted) {
       setState(() {
-        rows = List<Map<String, dynamic>>.from(r);
+        rows = r;
         loading = false;
       });
     }
@@ -442,12 +420,12 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
       ),
     );
     if (ok != true || organizationId == null) return;
-    await Supabase.instance.client.from('coupons').insert({
-      'organization_id': organizationId,
-      'code': code.text.trim().toUpperCase(),
-      'discount_percent': double.tryParse(percent.text.trim()),
-      'usage_limit': int.tryParse(limit.text.trim()),
-    });
+    await ref.read(packagesRepositoryProvider).createCoupon(
+      organizationId: organizationId!,
+      code: code.text.trim().toUpperCase(),
+      discountPercent: double.tryParse(percent.text.trim()),
+      usageLimit: int.tryParse(limit.text.trim()),
+    );
     load();
   }
 
@@ -467,18 +445,17 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
                       .map(
                         (r) => Card(
                           child: ListTile(
-                            title: Text(r['code']),
+                            title: Text(r.code),
                             subtitle: Text(
-                              '${r['usage_count']}${r['usage_limit'] != null ? '/${r['usage_limit']}' : ''} used'
-                              '${r['expires_at'] != null ? ' • expires ${DateTime.parse(r['expires_at']).toLocal().toString().substring(0, 10)}' : ''}'
-                              '${r['active'] == false ? ' • inactive' : ''}',
+                              '${r.usageCount}${r.usageLimit != null ? '/${r.usageLimit}' : ''} used'
+                              '${r.expiresAt != null ? ' • expires ${r.expiresAt!.toLocal().toString().substring(0, 10)}' : ''}'
+                              '${!r.active ? ' • inactive' : ''}',
                             ),
                             trailing: Text(
-                              r['discount_percent'] != null
-                                  ? '${r['discount_percent']}%'
+                              r.discountPercent != null
+                                  ? '${r.discountPercent}%'
                                   : formatMinor(
-                                      ((r['discount_minor'] as num?) ?? 0)
-                                          .toInt(),
+                                      r.discountMinor ?? 0,
                                       currency: currency,
                                     ),
                             ),

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../data/staff_repository.dart';
+import '../domain/staff_member.dart';
 import 'staff_schedule_page.dart';
 
 class StaffPage extends ConsumerStatefulWidget {
@@ -14,10 +15,10 @@ class StaffPage extends ConsumerStatefulWidget {
 }
 
 class _StaffPageState extends ConsumerState<StaffPage> {
-  final supabase = Supabase.instance.client;
-  List<Map<String, dynamic>> rows = [];
+  List<StaffMember> rows = [];
   bool loading = true;
   String? role;
+  String? organizationId;
 
   @override
   void initState() {
@@ -29,15 +30,11 @@ class _StaffPageState extends ConsumerState<StaffPage> {
     setState(() => loading = true);
     try {
       final o = await ref.read(activeOrganizationProvider.future);
+      organizationId = o;
       role = await ref.read(activeRoleProvider.future);
       if (o == null) return;
-      final r = await supabase
-          .from('staff')
-          .select()
-          .eq('organization_id', o)
-          .isFilter('deleted_at', null)
-          .order('display_name');
-      if (mounted) setState(() => rows = List<Map<String, dynamic>>.from(r));
+      final r = await ref.read(staffRepositoryProvider).listActive(o);
+      if (mounted) setState(() => rows = r);
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -66,11 +63,11 @@ class _StaffPageState extends ConsumerState<StaffPage> {
       ),
     );
     if (name == null || name.isEmpty) return;
-    final o = await ref.read(activeOrganizationProvider.future);
-    await supabase.from('staff').insert({
-      'organization_id': o,
-      'display_name': name,
-    });
+    final o = organizationId ?? await ref.read(activeOrganizationProvider.future);
+    if (o == null) return;
+    await ref
+        .read(staffRepositoryProvider)
+        .create(organizationId: o, displayName: name);
     await load();
   }
 
@@ -133,9 +130,10 @@ class _StaffPageState extends ConsumerState<StaffPage> {
     );
     if (ok != true) return;
     try {
-      await supabase.rpc(
-        'set_member_role_by_email',
-        params: {'p_org': o, 'p_email': email.text.trim(), 'p_role': r},
+      await ref.read(staffRepositoryProvider).assignRoleByEmail(
+        organizationId: o,
+        email: email.text.trim(),
+        role: r,
       );
       if (mounted) {
         ScaffoldMessenger.of(
@@ -187,16 +185,16 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                   ),
                   const SizedBox(height: 16),
                   ...rows.map((row) {
-                    final n = row['display_name'] ?? 'Unnamed';
+                    final n = row.displayName;
                     return Card(
                       child: ListTile(
                         leading: const CircleAvatar(child: Icon(Icons.person)),
                         title: Text(n),
-                        subtitle: Text(row['status'] ?? 'active'),
+                        subtitle: Text(row.status),
                         trailing: IconButton(
                           tooltip: 'Schedule',
                           onPressed: role == 'owner' || role == 'manager'
-                              ? () => schedule(row['id'], n)
+                              ? () => schedule(row.id, n)
                               : null,
                           icon: const Icon(Icons.schedule),
                         ),

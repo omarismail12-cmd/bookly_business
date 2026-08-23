@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../data/staff_schedule_repository.dart';
+import '../domain/staff_schedule.dart';
 import 'blocked_time_dialog.dart';
 
 const _weekdayLabels = [
@@ -33,7 +35,7 @@ String _timeOfDayToSql(TimeOfDay t) =>
 /// one-off blocked time (time off). All three feed get_available_slots()
 /// directly (supabase/migrations/0002, 0008) — writing here is what makes
 /// the exclusion actually take effect in booking.
-class StaffSchedulePage extends StatefulWidget {
+class StaffSchedulePage extends ConsumerStatefulWidget {
   final String staffId;
   final String staffName;
   const StaffSchedulePage({
@@ -43,18 +45,17 @@ class StaffSchedulePage extends StatefulWidget {
   });
 
   @override
-  State<StaffSchedulePage> createState() => _StaffSchedulePageState();
+  ConsumerState<StaffSchedulePage> createState() => _StaffSchedulePageState();
 }
 
-class _StaffSchedulePageState extends State<StaffSchedulePage>
+class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
     with SingleTickerProviderStateMixin {
-  final supabase = Supabase.instance.client;
   late final TabController tabs = TabController(length: 3, vsync: this);
   bool loading = true;
   Object? error;
-  Map<int, Map<String, dynamic>> hoursByWeekday = {};
-  Map<int, Map<String, dynamic>> breaksByWeekday = {};
-  List<Map<String, dynamic>> blockedTimes = [];
+  Map<int, WorkingHours> hoursByWeekday = {};
+  Map<int, StaffBreak> breaksByWeekday = {};
+  List<BlockedTime> blockedTimes = [];
 
   @override
   void initState() {
@@ -77,30 +78,15 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
       error = null;
     });
     try {
-      final hours = await supabase
-          .from('working_hours')
-          .select()
-          .eq('staff_id', widget.staffId);
-      final breaks = await supabase
-          .from('staff_breaks')
-          .select()
-          .eq('staff_id', widget.staffId);
-      final blocked = await supabase
-          .from('blocked_times')
-          .select()
-          .eq('staff_id', widget.staffId)
-          .order('starts_at');
+      final repo = ref.read(staffScheduleRepositoryProvider);
+      final hours = await repo.workingHours(widget.staffId);
+      final breaks = await repo.staffBreaks(widget.staffId);
+      final blocked = await repo.blockedTimes(widget.staffId);
       if (!mounted) return;
       setState(() {
-        hoursByWeekday = {
-          for (final r in List<Map<String, dynamic>>.from(hours))
-            r['weekday'] as int: r,
-        };
-        breaksByWeekday = {
-          for (final r in List<Map<String, dynamic>>.from(breaks))
-            r['weekday'] as int: r,
-        };
-        blockedTimes = List<Map<String, dynamic>>.from(blocked);
+        hoursByWeekday = {for (final r in hours) r.weekday: r};
+        breaksByWeekday = {for (final r in breaks) r.weekday: r};
+        blockedTimes = blocked;
       });
     } catch (e) {
       if (mounted) setState(() => error = e);
@@ -112,10 +98,10 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
   Future<void> editWorkingHours(int weekday) async {
     final existing = hoursByWeekday[weekday];
     TimeOfDay start = existing != null
-        ? _parseTime(existing['start_time'])
+        ? _parseTime(existing.startTime)
         : const TimeOfDay(hour: 9, minute: 0);
     TimeOfDay end = existing != null
-        ? _parseTime(existing['end_time'])
+        ? _parseTime(existing.endTime)
         : const TimeOfDay(hour: 17, minute: 0);
     final result = await showDialog<String>(
       context: context,
@@ -167,18 +153,19 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
     );
     if (result == null) return;
     try {
+      final repo = ref.read(staffScheduleRepositoryProvider);
       if (result == 'clear' && existing != null) {
-        await supabase.from('working_hours').delete().eq('id', existing['id']);
+        await repo.deleteWorkingHours(existing.id);
       } else if (result == 'save') {
         if (!(start.hour * 60 + start.minute < end.hour * 60 + end.minute)) {
           throw Exception('Start time must be before end time.');
         }
-        await supabase.from('working_hours').upsert({
-          'staff_id': widget.staffId,
-          'weekday': weekday,
-          'start_time': _timeOfDayToSql(start),
-          'end_time': _timeOfDayToSql(end),
-        }, onConflict: 'staff_id,weekday');
+        await repo.upsertWorkingHours(
+          staffId: widget.staffId,
+          weekday: weekday,
+          startTime: _timeOfDayToSql(start),
+          endTime: _timeOfDayToSql(end),
+        );
       }
       await load();
     } catch (e) {
@@ -189,10 +176,10 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
   Future<void> editBreak(int weekday) async {
     final existing = breaksByWeekday[weekday];
     TimeOfDay start = existing != null
-        ? _parseTime(existing['start_time'])
+        ? _parseTime(existing.startTime)
         : const TimeOfDay(hour: 13, minute: 0);
     TimeOfDay end = existing != null
-        ? _parseTime(existing['end_time'])
+        ? _parseTime(existing.endTime)
         : const TimeOfDay(hour: 14, minute: 0);
     final result = await showDialog<String>(
       context: context,
@@ -244,18 +231,19 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
     );
     if (result == null) return;
     try {
+      final repo = ref.read(staffScheduleRepositoryProvider);
       if (result == 'clear' && existing != null) {
-        await supabase.from('staff_breaks').delete().eq('id', existing['id']);
+        await repo.deleteBreak(existing.id);
       } else if (result == 'save') {
         if (!(start.hour * 60 + start.minute < end.hour * 60 + end.minute)) {
           throw Exception('Start time must be before end time.');
         }
-        await supabase.from('staff_breaks').upsert({
-          'staff_id': widget.staffId,
-          'weekday': weekday,
-          'start_time': _timeOfDayToSql(start),
-          'end_time': _timeOfDayToSql(end),
-        }, onConflict: 'staff_id,weekday');
+        await repo.upsertBreak(
+          staffId: widget.staffId,
+          weekday: weekday,
+          startTime: _timeOfDayToSql(start),
+          endTime: _timeOfDayToSql(end),
+        );
       }
       await load();
     } catch (e) {
@@ -266,14 +254,15 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
   Future<void> addBlockedTime() async {
     final added = await showAddBlockedTimeDialog(
       context,
+      ref: ref,
       staffId: widget.staffId,
     );
     if (added) await load();
   }
 
-  Future<void> deleteBlockedTime(Map<String, dynamic> row) async {
+  Future<void> deleteBlockedTime(BlockedTime row) async {
     try {
-      await supabase.from('blocked_times').delete().eq('id', row['id']);
+      await ref.read(staffScheduleRepositoryProvider).deleteBlockedTime(row.id);
       await load();
     } catch (e) {
       _showError('Could not remove blocked time: $e');
@@ -319,13 +308,17 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
           : TabBarView(
               controller: tabs,
               children: [
-                _weekdayList(
+                _weekdayList<WorkingHours>(
                   byWeekday: hoursByWeekday,
+                  startTimeOf: (r) => r.startTime,
+                  endTimeOf: (r) => r.endTime,
                   onTap: editWorkingHours,
                   emptyLabel: 'Off',
                 ),
-                _weekdayList(
+                _weekdayList<StaffBreak>(
                   byWeekday: breaksByWeekday,
+                  startTimeOf: (r) => r.startTime,
+                  endTimeOf: (r) => r.endTime,
                   onTap: editBreak,
                   emptyLabel: 'No break',
                 ),
@@ -335,8 +328,10 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
     );
   }
 
-  Widget _weekdayList({
-    required Map<int, Map<String, dynamic>> byWeekday,
+  Widget _weekdayList<T>({
+    required Map<int, T> byWeekday,
+    required String Function(T) startTimeOf,
+    required String Function(T) endTimeOf,
     required void Function(int weekday) onTap,
     required String emptyLabel,
   }) {
@@ -352,7 +347,7 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
             subtitle: Text(
               row == null
                   ? emptyLabel
-                  : '${_fmtTime(row['start_time'])} – ${_fmtTime(row['end_time'])}',
+                  : '${_fmtTime(startTimeOf(row))} – ${_fmtTime(endTimeOf(row))}',
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => onTap(weekday),
@@ -371,14 +366,14 @@ class _StaffSchedulePageState extends State<StaffSchedulePage>
       itemCount: blockedTimes.length,
       itemBuilder: (context, i) {
         final row = blockedTimes[i];
-        final start = DateTime.parse(row['starts_at']).toLocal();
-        final end = DateTime.parse(row['ends_at']).toLocal();
+        final start = row.startsAt.toLocal();
+        final end = row.endsAt.toLocal();
         return Card(
           child: ListTile(
             title: Text(DateFormat.yMMMd().add_jm().format(start)),
             subtitle: Text(
               '${DateFormat.jm().format(end)}'
-              '${row['reason'] != null ? ' • ${row['reason']}' : ''}',
+              '${row.reason != null ? ' • ${row.reason}' : ''}',
             ),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline),
