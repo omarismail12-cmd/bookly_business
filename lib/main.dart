@@ -15,7 +15,7 @@ Future<void> main() async {
       // platform — see FirebaseCrashReporting's class doc.
       await crashReporting.initialize();
       if (!AppConfig.isConfigured) {
-        runApp(const ProviderScope(child: _ConfigMissingApp()));
+        runApp(const ProviderScope(child: ConfigMissingApp()));
         return;
       }
       await Supabase.initialize(
@@ -30,8 +30,8 @@ Future<void> main() async {
   );
 }
 
-class _ConfigMissingApp extends StatelessWidget {
-  const _ConfigMissingApp();
+class ConfigMissingApp extends StatelessWidget {
+  const ConfigMissingApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
     home: Scaffold(

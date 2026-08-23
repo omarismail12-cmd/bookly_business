@@ -79,6 +79,73 @@ class _StaffPageState extends ConsumerState<StaffPage> {
     );
   }
 
+  Future<void> linkLogin(StaffMember row) async {
+    final email = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Link login for ${row.displayName}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (row.profileId != null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'This staff member is already linked to a login. '
+                  'Linking a new email will replace it.',
+                ),
+              ),
+            TextField(
+              controller: email,
+              decoration: const InputDecoration(
+                labelText: 'Account email (must already have the Staff role)',
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text(
+                'If that account is already linked to a different staff '
+                'row here (e.g. auto-linked when the Staff role was '
+                'assigned), it will be moved to this one instead.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, email.text.trim().isNotEmpty),
+            child: const Text('Link'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref
+          .read(staffRepositoryProvider)
+          .linkToUserByEmail(staffId: row.id, email: email.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Login linked.')));
+      }
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not link login: $e')));
+      }
+    }
+  }
+
   Future<void> assignRole() async {
     final o = await ref.read(activeOrganizationProvider.future);
     if (o == null) return;
@@ -190,13 +257,34 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                       child: ListTile(
                         leading: const CircleAvatar(child: Icon(Icons.person)),
                         title: Text(n),
-                        subtitle: Text(row.status),
-                        trailing: IconButton(
-                          tooltip: 'Schedule',
-                          onPressed: role == 'owner' || role == 'manager'
-                              ? () => schedule(row.id, n)
-                              : null,
-                          icon: const Icon(Icons.schedule),
+                        subtitle: Text(
+                          row.profileId == null
+                              ? '${row.status} · no login linked'
+                              : row.status,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (role == 'owner')
+                              IconButton(
+                                tooltip: row.profileId == null
+                                    ? 'Link login'
+                                    : 'Change linked login',
+                                onPressed: () => linkLogin(row),
+                                icon: Icon(
+                                  row.profileId == null
+                                      ? Icons.link_off
+                                      : Icons.link,
+                                ),
+                              ),
+                            IconButton(
+                              tooltip: 'Schedule',
+                              onPressed: role == 'owner' || role == 'manager'
+                                  ? () => schedule(row.id, n)
+                                  : null,
+                              icon: const Icon(Icons.schedule),
+                            ),
+                          ],
                         ),
                       ),
                     );

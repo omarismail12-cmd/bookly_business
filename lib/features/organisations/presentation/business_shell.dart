@@ -156,13 +156,23 @@ class _BusinessShellState extends State<BusinessShell> {
     }
     if (membership == null) {
       if (suspended) {
-        return const Scaffold(
+        return Scaffold(
           body: Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Your Bookly business membership is suspended. Contact the business owner before creating or accessing another workspace.',
-                textAlign: TextAlign.center,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Your Bookly business membership is suspended. Contact the business owner before creating or accessing another workspace.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: logout,
+                    child: const Text('Sign out'),
+                  ),
+                ],
               ),
             ),
           ),

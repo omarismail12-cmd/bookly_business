@@ -99,6 +99,18 @@ class StaffRepository {
     'set_member_role_by_email',
     params: {'p_org': organizationId, 'p_email': email, 'p_role': role},
   );
+
+  /// Links a `staff` row to an existing account by email, so that account's
+  /// sign-in resolves to this staff row (staff_today_page.dart, and the
+  /// staff-self clause of change_appointment_status()) — see
+  /// supabase/migrations/0031_link_staff_to_login.sql.
+  Future<void> linkToUserByEmail({
+    required String staffId,
+    required String email,
+  }) => client.rpc(
+    'link_staff_to_user_by_email',
+    params: {'p_staff': staffId, 'p_email': email},
+  );
 }
 
 final staffRepositoryProvider = Provider<StaffRepository>(

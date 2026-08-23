@@ -45,7 +45,13 @@ Deno.serve(async () => {
           ? "Appointment tomorrow"
           : job.kind === "reminder_2h"
             ? "Appointment reminder"
-            : "Bookly Business");
+            : job.kind === "confirmation_staff"
+              ? "New booking"
+              : job.kind === "reschedule"
+                ? "Appointment rescheduled"
+                : job.kind === "reschedule_staff"
+                  ? "Appointment rescheduled"
+                  : "Bookly Business");
     const body =
       job.body ??
       (job.kind === "confirmation"
@@ -54,7 +60,13 @@ Deno.serve(async () => {
           ? "You have an appointment in about 24 hours."
           : job.kind === "reminder_2h"
             ? "You have an appointment in about 2 hours."
-            : "");
+            : job.kind === "confirmation_staff"
+              ? "A new appointment was added to your schedule."
+              : job.kind === "reschedule"
+                ? "Your appointment time has changed."
+                : job.kind === "reschedule_staff"
+                  ? "One of your appointments was moved to a new time."
+                  : "");
     let jobSent = false;
     for (const t of tokens ?? []) {
       const response = await fetch(

@@ -1,9 +1,15 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:bookly_business/core/config/app_config.dart';
+import 'package:bookly_business/core/localization/gen/app_localizations.dart';
 import 'package:bookly_business/core/localization/gen/app_localizations_ar.dart';
 import 'package:bookly_business/core/localization/gen/app_localizations_en.dart';
 import 'package:bookly_business/core/permissions/app_role.dart';
 import 'package:bookly_business/core/permissions/permission.dart';
+import 'package:bookly_business/features/appointments/presentation/booking_page.dart';
+import 'package:bookly_business/main.dart';
 import 'package:bookly_business/shared/formatters/currency.dart';
 import 'package:bookly_business/shared/validators/validators.dart';
 
@@ -134,6 +140,80 @@ void main() {
                 '*_self_select policies, not this permission system.',
           );
         }
+      },
+    );
+  });
+
+  group('App smoke test', () {
+    testWidgets(
+      'renders the config-missing fallback without throwing when Supabase '
+      'is not configured',
+      (tester) async {
+        // A plain `flutter test` run has no --dart-define, so this is
+        // exactly the path main() takes by default — and the one most
+        // likely to silently break if ProviderScope/localization wiring
+        // around it breaks. Pumps the real widget from lib/main.dart, not a
+        // reconstruction of it.
+        expect(AppConfig.isConfigured, isFalse);
+        await tester.pumpWidget(
+          const ProviderScope(child: ConfigMissingApp()),
+        );
+        expect(find.byType(MaterialApp), findsOneWidget);
+        expect(
+          find.textContaining('Supabase configuration is missing'),
+          findsOneWidget,
+        );
+      },
+    );
+  });
+
+  group('Booking flow localization', () {
+    testWidgets(
+      'renders RTL with real Arabic strings when the ar locale is active',
+      (tester) async {
+        // BookingPage can't be pumped against live data under `flutter
+        // test` — it depends on Supabase.instance.client, and this
+        // project's test setup deliberately has no Supabase mocking (see
+        // integration_test/test_helpers.dart's doc comment for why real
+        // network needs `dart test`, not `flutter test`). But
+        // Supabase.instance throwing (never initialized here) is caught by
+        // BookingPage's own try/catch in load(), which still flips
+        // `loading` to false and renders the full localized form with
+        // empty service/staff/location lists — exactly the real frame this
+        // test needs, using the real widget and its real l10n getters.
+        await tester.pumpWidget(
+          const ProviderScope(
+            child: MaterialApp(
+              locale: Locale('ar'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: BookingPage(publicSlug: 'test-salon'),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final context = tester.element(find.byType(BookingPage));
+        expect(
+          Localizations.localeOf(context).languageCode,
+          'ar',
+          reason: 'MaterialApp.locale was forced to ar; falling back to en '
+              'would mean the ar delegate failed to load.',
+        );
+        expect(
+          Directionality.of(context),
+          TextDirection.rtl,
+          reason: 'Arabic must resolve to RTL layout direction.',
+        );
+
+        expect(find.text(_ar.bookingTitlePublic), findsOneWidget);
+        expect(find.text(_ar.bookingService), findsOneWidget);
+        expect(find.text(_ar.bookingStaff), findsOneWidget);
+        expect(find.text(_ar.bookingFullName), findsOneWidget);
+        // The actual regression this test guards against: falling back to
+        // English instead of actually rendering the Arabic strings.
+        expect(find.text(_en.bookingTitlePublic), findsNothing);
+        expect(find.text(_en.bookingService), findsNothing);
       },
     );
   });

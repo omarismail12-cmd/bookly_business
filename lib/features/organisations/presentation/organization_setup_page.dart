@@ -75,6 +75,16 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Set up your business'),
+        actions: [
+          TextButton(
+            onPressed: () => Supabase.instance.client.auth.signOut(),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500),
@@ -122,6 +132,14 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
                       onPressed: loading ? null : seedDemo,
                       child: const Text('Create demo business + test data'),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Waiting to be added to an existing team instead? Ask '
+                    'the owner to assign you a role, then sign out above '
+                    'and sign back in.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
