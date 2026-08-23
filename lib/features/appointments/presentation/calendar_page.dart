@@ -73,12 +73,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         .order('starts_at')
         .range(page * _pageSize, page * _pageSize + _pageSize - 1);
     if (channel == null) await subscribe(o);
-    if (mounted)
+    if (mounted) {
       setState(() {
         rows = List<Map<String, dynamic>>.from(result);
         hasMore = rows.length == _pageSize;
         loading = false;
       });
+    }
   }
 
   void goto({DateTime? newDay, bool? newWeek}) {
@@ -98,10 +99,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       );
       await load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Status update failed: $e')));
+      }
     }
   }
 
@@ -116,10 +118,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       );
       await load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Cancellation failed: $e')));
+      }
     }
   }
 
@@ -150,10 +153,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       );
       await load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Reschedule failed: $e')));
+      }
     }
   }
 

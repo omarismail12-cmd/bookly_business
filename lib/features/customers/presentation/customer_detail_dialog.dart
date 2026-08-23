@@ -224,7 +224,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: packageId,
+                initialValue: packageId,
                 decoration: const InputDecoration(labelText: 'Package'),
                 items: catalogPackages
                     .map(
@@ -240,7 +240,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: method,
+                initialValue: method,
                 decoration: const InputDecoration(labelText: 'Payment method'),
                 items: const [
                   DropdownMenuItem(value: 'cash', child: Text('Cash')),
@@ -301,7 +301,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: membershipId,
+                initialValue: membershipId,
                 decoration: const InputDecoration(labelText: 'Membership'),
                 items: catalogMemberships
                     .map(
@@ -317,7 +317,7 @@ class _CustomerDetailDialogState extends State<CustomerDetailDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: method,
+                initialValue: method,
                 decoration: const InputDecoration(labelText: 'Payment method'),
                 items: const [
                   DropdownMenuItem(value: 'cash', child: Text('Cash')),

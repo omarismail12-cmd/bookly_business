@@ -222,7 +222,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: channel,
+                initialValue: channel,
                 decoration: const InputDecoration(labelText: 'Channel'),
                 items: const [
                   DropdownMenuItem(

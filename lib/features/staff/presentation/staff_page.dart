@@ -103,7 +103,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: r,
+                initialValue: r,
                 decoration: const InputDecoration(labelText: 'Role'),
                 items: const [
                   DropdownMenuItem(value: 'manager', child: Text('Manager')),

@@ -227,7 +227,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: appointment,
+                    initialValue: appointment,
                     decoration: const InputDecoration(
                       labelText: 'Appointment',
                     ),
@@ -253,7 +253,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: method,
+                    initialValue: method,
                     decoration: const InputDecoration(labelText: 'Method'),
                     items: const [
                       DropdownMenuItem(value: 'cash', child: Text('Cash')),
@@ -269,7 +269,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: type,
+                    initialValue: type,
                     decoration: const InputDecoration(labelText: 'Type'),
                     items: const [
                       DropdownMenuItem(

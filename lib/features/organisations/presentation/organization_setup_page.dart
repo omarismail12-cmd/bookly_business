@@ -46,14 +46,16 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
       error = null;
     });
     try {
-      if (name.text.trim().length < 2)
+      if (name.text.trim().length < 2) {
         throw Exception('Business name is required.');
+      }
       if (!RegExp(
         r'^[a-z0-9-]{3,40}$',
-      ).hasMatch(slug.text.trim().toLowerCase()))
+      ).hasMatch(slug.text.trim().toLowerCase())) {
         throw Exception(
           'Slug must use 3-40 lowercase letters, numbers or hyphens.',
         );
+      }
       await Supabase.instance.client.rpc(
         'create_organization_for_current_user',
         params: {

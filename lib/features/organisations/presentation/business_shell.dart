@@ -119,10 +119,11 @@ class _BusinessShellState extends State<BusinessShell> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading)
+    if (loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     if (membership == null) {
-      if (suspended)
+      if (suspended) {
         return const Scaffold(
           body: Center(
             child: Padding(
@@ -134,6 +135,7 @@ class _BusinessShellState extends State<BusinessShell> {
             ),
           ),
         );
+      }
       return OrganizationSetupPage(onCreated: load);
     }
     final role = AppRole.values.byName(membership!.role);

@@ -57,7 +57,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
         .eq('organization_id', o)
         .eq('status', 'active')
         .order('display_name');
-    if (mounted)
+    if (mounted) {
       setState(() {
         rows = List<Map<String, dynamic>>.from(r);
         hasMore = rows.length == _pageSize;
@@ -66,6 +66,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
         staff = List<Map<String, dynamic>>.from(st);
         loading = false;
       });
+    }
   }
 
   Future<void> advance(String id, String status) async {
@@ -87,7 +88,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: cId,
+                initialValue: cId,
                 decoration: const InputDecoration(labelText: 'Customer'),
                 items: customers
                     .map<DropdownMenuItem<String>>(
@@ -101,7 +102,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: sId,
+                initialValue: sId,
                 decoration: const InputDecoration(labelText: 'Service'),
                 items: services
                     .map<DropdownMenuItem<String>>(
@@ -115,7 +116,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
-                value: stId,
+                initialValue: stId,
                 decoration: const InputDecoration(
                   labelText: 'Staff (optional)',
                 ),
@@ -155,18 +156,20 @@ class _QueuePageState extends ConsumerState<QueuePage> {
         'add_walk_in',
         params: {'p_customer': cId, 'p_service': sId, 'p_staff': stId},
       );
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Walk-in added • ${id.toString().substring(0, 8)}'),
           ),
         );
+      }
       await load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Could not add walk-in: $e')));
+      }
     }
   }
 

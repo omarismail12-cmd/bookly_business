@@ -125,7 +125,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                   decoration: const InputDecoration(labelText: 'Name'),
                 ),
                 DropdownButtonFormField<String>(
-                  value: serviceId,
+                  initialValue: serviceId,
                   decoration: const InputDecoration(labelText: 'Service'),
                   items: services
                       .map(

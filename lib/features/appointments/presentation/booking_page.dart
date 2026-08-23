@@ -94,7 +94,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
             .limit(100);
         customers = List<Map<String, dynamic>>.from(cu);
       }
-      if (mounted)
+      if (mounted) {
         setState(() {
           services = List<Map<String, dynamic>>.from(s);
           staff = List<Map<String, dynamic>>.from(st);
@@ -104,13 +104,15 @@ class _BookingPageState extends ConsumerState<BookingPage> {
               : null;
           loading = false;
         });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           message = e.toString();
           messageIsError = true;
           loading = false;
         });
+      }
     }
   }
 
@@ -214,8 +216,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
   String _friendly(Object e) {
     final s = e.toString();
-    if (s.contains('SLOT_ALREADY_BOOKED') || s.contains('SLOT_NOT_AVAILABLE'))
+    if (s.contains('SLOT_ALREADY_BOOKED') || s.contains('SLOT_NOT_AVAILABLE')) {
       return 'This slot is no longer available. Please choose another time.';
+    }
     if (s.contains('BUSINESS_NOT_FOUND')) return 'Business not found.';
     return s.replaceFirst('Exception: ', '');
   }
@@ -259,7 +262,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           ],
           const SizedBox(height: 20),
           DropdownButtonFormField<String>(
-            value: serviceId,
+            initialValue: serviceId,
             decoration: InputDecoration(labelText: l10n.bookingService),
             items: services
                 .map(
@@ -278,7 +281,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: staffId,
+            initialValue: staffId,
             decoration: InputDecoration(labelText: l10n.bookingStaff),
             items: staff
                 .map(
@@ -296,7 +299,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           if (!isPublic) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: customerId,
+              initialValue: customerId,
               decoration: InputDecoration(labelText: l10n.bookingCustomer),
               items: customers
                   .map(
@@ -312,7 +315,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           if (locations.length > 1) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: locationId,
+              initialValue: locationId,
               decoration: InputDecoration(labelText: l10n.bookingLocation),
               items: locations
                   .map(
