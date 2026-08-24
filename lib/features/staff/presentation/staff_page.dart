@@ -152,6 +152,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
     final email = TextEditingController();
     String r = 'staff';
     final ok = await showDialog<bool>(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(

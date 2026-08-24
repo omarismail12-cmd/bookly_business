@@ -131,7 +131,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
           operation: 'update_customer_notes',
           payload: {
             'private_notes': notes.text.trim(),
-            if (baseVersion != null) '_base_version': baseVersion,
+            '_base_version': ?baseVersion,
           },
         ),
       );
@@ -149,7 +149,9 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
           : stillPending
           ? "Offline — notes will sync when you're back online."
           : 'Notes saved.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -278,10 +280,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                 items: const [
                   DropdownMenuItem(value: 'cash', child: Text('Cash')),
                   DropdownMenuItem(value: 'card', child: Text('Card')),
-                  DropdownMenuItem(
-                    value: 'transfer',
-                    child: Text('Transfer'),
-                  ),
+                  DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
                 ],
                 onChanged: (v) => setLocal(() => method = v ?? 'cash'),
               ),
@@ -355,10 +354,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                 items: const [
                   DropdownMenuItem(value: 'cash', child: Text('Cash')),
                   DropdownMenuItem(value: 'card', child: Text('Card')),
-                  DropdownMenuItem(
-                    value: 'transfer',
-                    child: Text('Transfer'),
-                  ),
+                  DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
                 ],
                 onChanged: (v) => setLocal(() => method = v ?? 'cash'),
               ),
@@ -418,9 +414,9 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
           ? '${formatMinor((minor as num).toInt(), currency: currency)} off'
           : 'applied';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Coupon redeemed: $discount')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Coupon redeemed: $discount')));
       }
       coupon.clear();
     } catch (e) {
@@ -588,8 +584,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                            (m['memberships'] as Map?)?['name'] ??
-                                'Membership',
+                            (m['memberships'] as Map?)?['name'] ?? 'Membership',
                           ),
                           subtitle: Text(
                             '${m['status']} • until ${DateTime.parse(m['ends_at']).toLocal().toString().substring(0, 10)}',

@@ -31,24 +31,24 @@ final appRouter = GoRouter(
     return null;
   },
   routes: [
-    GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
-    GoRoute(path: '/signup', builder: (_, __) => const SignupPage()),
-    GoRoute(path: '/home', builder: (_, __) => const BusinessShell()),
+    GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
+    GoRoute(path: '/signup', builder: (_, _) => const SignupPage()),
+    GoRoute(path: '/home', builder: (_, _) => const BusinessShell()),
     GoRoute(
       path: '/customer/login',
-      builder: (_, __) => const CustomerLoginPage(),
+      builder: (_, _) => const CustomerLoginPage(),
     ),
     GoRoute(
       path: '/customer/signup',
-      builder: (_, __) => const CustomerSignupPage(),
+      builder: (_, _) => const CustomerSignupPage(),
     ),
-    GoRoute(path: '/customer', builder: (_, __) => const CustomerShell()),
+    GoRoute(path: '/customer', builder: (_, _) => const CustomerShell()),
     GoRoute(
       path: '/book/:slug',
       builder: (_, state) =>
           BookingPage(publicSlug: state.pathParameters['slug']),
     ),
-    GoRoute(path: '/book', builder: (_, __) => const BookingPage()),
+    GoRoute(path: '/book', builder: (_, _) => const BookingPage()),
   ],
   errorBuilder: (context, state) => Scaffold(
     body: Center(

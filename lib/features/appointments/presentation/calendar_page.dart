@@ -168,6 +168,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
     if (d == null) return;
     final t = await showTimePicker(
+      // ignore: use_build_context_synchronously
       context: context,
       initialTime: TimeOfDay.fromDateTime(current),
     );
