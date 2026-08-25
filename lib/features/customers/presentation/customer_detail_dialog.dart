@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../payments/data/payments_repository.dart';
+import '../data/customers_repository.dart';
+import '../domain/customer.dart';
 
 /// Customer 360 view: profile + notes, loyalty points, purchased packages
 /// and memberships, and coupon redemption. Selling/redeeming actions are
@@ -14,7 +15,7 @@ import '../../payments/data/payments_repository.dart';
 /// set used elsewhere (Permission.takePayments); everyone who can see the
 /// Customers page can view this dialog and edit notes.
 class CustomerDetailDialog extends ConsumerStatefulWidget {
-  final Map<String, dynamic> customer;
+  final Customer customer;
   final String role;
 
   const CustomerDetailDialog({
@@ -45,15 +46,13 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
       widget.role == 'manager' ||
       widget.role == 'receptionist';
 
-  String get customerId => widget.customer['id'] as String;
-  String get organizationId => widget.customer['organization_id'] as String;
+  String get customerId => widget.customer.id;
+  String get organizationId => widget.customer.organizationId;
 
   @override
   void initState() {
     super.initState();
-    notes = TextEditingController(
-      text: (widget.customer['private_notes'] as String?) ?? '',
-    );
+    notes = TextEditingController(text: widget.customer.privateNotes ?? '');
     Future.microtask(load);
   }
 
@@ -65,47 +64,21 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
   }
 
   Future<void> load() async {
-    final c = Supabase.instance.client;
-    final org = await c
-        .from('organizations')
-        .select('currency')
-        .eq('id', organizationId)
-        .maybeSingle();
-    final loyalty = await c
-        .from('loyalty_accounts')
-        .select('points')
-        .eq('customer_id', customerId)
-        .maybeSingle();
-    final pkgs = await c
-        .from('customer_packages')
-        .select('id,remaining_uses,expires_at,status,packages(name)')
-        .eq('customer_id', customerId)
-        .order('purchased_at', ascending: false);
-    final mems = await c
-        .from('customer_memberships')
-        .select('id,membership_id,status,starts_at,ends_at,memberships(name)')
-        .eq('customer_id', customerId)
-        .order('starts_at', ascending: false);
-    final catalogPkgs = await c
-        .from('packages')
-        .select('id,name,price_minor')
-        .eq('organization_id', organizationId)
-        .eq('active', true)
-        .order('name');
-    final catalogMems = await c
-        .from('memberships')
-        .select('id,name,price_minor')
-        .eq('organization_id', organizationId)
-        .eq('active', true)
-        .order('name');
+    final repo = ref.read(customersRepositoryProvider);
+    final org = await repo.orgCurrency(organizationId);
+    final loyalty = await repo.loyaltyPoints(customerId);
+    final pkgs = await repo.customerPackages(customerId);
+    final mems = await repo.customerMemberships(customerId);
+    final catalogPkgs = await repo.activePackagesCatalog(organizationId);
+    final catalogMems = await repo.activeMembershipsCatalog(organizationId);
     if (!mounted) return;
     setState(() {
-      currency = (org?['currency'] as String?) ?? currency;
-      points = ((loyalty as Map?)?['points'] as num?)?.toInt() ?? 0;
-      packages = List<Map<String, dynamic>>.from(pkgs);
-      memberships = List<Map<String, dynamic>>.from(mems);
-      catalogPackages = List<Map<String, dynamic>>.from(catalogPkgs);
-      catalogMemberships = List<Map<String, dynamic>>.from(catalogMems);
+      currency = org;
+      points = loyalty;
+      packages = pkgs;
+      memberships = mems;
+      catalogPackages = catalogPkgs;
+      catalogMemberships = catalogMems;
       loading = false;
     });
   }
@@ -122,7 +95,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
     setState(() => savingNotes = true);
     try {
       final operationId = const Uuid().v4();
-      final baseVersion = (widget.customer['version'] as num?)?.toInt();
+      final baseVersion = widget.customer.version;
       final sync = ref.read(syncServiceProvider);
       await sync.enqueue(
         SyncOperation(
@@ -192,12 +165,9 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
     );
     if (ok != true) return;
     try {
-      await Supabase.instance.client.rpc(
-        'redeem_loyalty_points',
-        params: {
-          'p_customer': customerId,
-          'p_points': int.parse(amount.text.trim()),
-        },
+      await ref.read(customersRepositoryProvider).redeemLoyaltyPoints(
+        customerId: customerId,
+        points: int.parse(amount.text.trim()),
       );
       await load();
     } catch (e) {
@@ -233,10 +203,9 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
     );
     if (ok != true) return;
     try {
-      await Supabase.instance.client.rpc(
-        'redeem_package_use',
-        params: {'p_customer_package': customerPackage['id']},
-      );
+      await ref
+          .read(customersRepositoryProvider)
+          .redeemPackageUse(customerPackage['id'] as String);
       await load();
     } catch (e) {
       if (mounted) {
@@ -302,14 +271,11 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
     );
     if (ok != true || packageId == null) return;
     try {
-      await Supabase.instance.client.rpc(
-        'sell_package',
-        params: {
-          'p_idempotency': const Uuid().v4(),
-          'p_customer': customerId,
-          'p_package': packageId,
-          'p_method': method,
-        },
+      await ref.read(customersRepositoryProvider).sellPackage(
+        idempotencyKey: const Uuid().v4(),
+        customerId: customerId,
+        packageId: packageId!,
+        method: method,
       );
       await load();
     } catch (e) {
@@ -376,14 +342,11 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
     );
     if (ok != true || membershipId == null) return;
     try {
-      await Supabase.instance.client.rpc(
-        'purchase_membership',
-        params: {
-          'p_idempotency': const Uuid().v4(),
-          'p_customer': customerId,
-          'p_membership': membershipId,
-          'p_method': method,
-        },
+      await ref.read(customersRepositoryProvider).purchaseMembership(
+        idempotencyKey: const Uuid().v4(),
+        customerId: customerId,
+        membershipId: membershipId!,
+        method: method,
       );
       await load();
     } catch (e) {
@@ -426,10 +389,9 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
     );
     if (ok != true) return;
     try {
-      await Supabase.instance.client
-          .from('customer_memberships')
-          .update({'status': 'cancelled'})
-          .eq('id', row['id']);
+      await ref
+          .read(customersRepositoryProvider)
+          .cancelMembership(row['id'] as String);
       await load();
     } catch (e) {
       if (mounted) {
@@ -486,13 +448,10 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
       // renew_membership() extends this same row's ends_at in place
       // (carrying over remaining time) — a genuinely new sale would go
       // through sellMembership()/purchase_membership() above instead.
-      await Supabase.instance.client.rpc(
-        'renew_membership',
-        params: {
-          'p_idempotency': const Uuid().v4(),
-          'p_customer_membership': row['id'],
-          'p_method': method,
-        },
+      await ref.read(customersRepositoryProvider).renewMembership(
+        idempotencyKey: const Uuid().v4(),
+        customerMembershipId: row['id'] as String,
+        method: method,
       );
       await load();
     } catch (e) {
@@ -552,7 +511,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                         children: [
                           Expanded(
                             child: Text(
-                              c['name'] ?? '',
+                              c.name,
                               style: Theme.of(context).textTheme.headlineSmall,
                             ),
                           ),
@@ -562,7 +521,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                           ),
                         ],
                       ),
-                      Text('${c['phone'] ?? ''} • ${c['email'] ?? ''}'),
+                      Text('${c.phone ?? ''} • ${c.email ?? ''}'),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 20,
@@ -570,19 +529,17 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                         children: [
                           _stat(
                             'Total spent',
-                            formatMinor(
-                              (c['total_spent_minor'] as num? ?? 0).toInt(),
-                              currency: currency,
-                            ),
+                            formatMinor(c.totalSpentMinor, currency: currency),
                           ),
-                          _stat('No-shows', '${c['no_show_count'] ?? 0}'),
+                          _stat('No-shows', '${c.noShowCount}'),
                           _stat(
                             'Last visit',
-                            c['last_visit_at'] == null
+                            c.lastVisitAt == null
                                 ? 'Never'
-                                : DateTime.parse(
-                                    c['last_visit_at'],
-                                  ).toLocal().toString().substring(0, 10),
+                                : c.lastVisitAt!
+                                      .toLocal()
+                                      .toString()
+                                      .substring(0, 10),
                           ),
                           _stat('Loyalty points', '$points'),
                         ],

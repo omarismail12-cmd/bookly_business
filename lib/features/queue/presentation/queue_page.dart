@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/widgets/async_state.dart';
@@ -23,10 +24,21 @@ class _QueuePageState extends ConsumerState<QueuePage> {
   bool loading = true;
   int page = 0;
   bool hasMore = false;
+  RealtimeChannel? channel;
   @override
   void initState() {
     super.initState();
     Future.microtask(load);
+  }
+
+  @override
+  void dispose() {
+    if (channel != null) Supabase.instance.client.removeChannel(channel!);
+    super.dispose();
+  }
+
+  Future<void> subscribe(String org) async {
+    channel = ref.read(queueRepositoryProvider).subscribe(org, load);
   }
 
   Future<void> load() async {
@@ -37,6 +49,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
     final cu = await queueRepo.listCustomerIdName(o);
     final se = await ref.read(servicesRepositoryProvider).listIdName(o);
     final st = await ref.read(staffRepositoryProvider).listIdNameActive(o);
+    if (channel == null) await subscribe(o);
     if (mounted) {
       setState(() {
         rows = r;

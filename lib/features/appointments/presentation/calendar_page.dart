@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/local/local_store_provider.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../data/appointments_repository.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -36,20 +36,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   }
 
   Future<void> subscribe(String org) async {
-    channel = Supabase.instance.client
-        .channel('calendar-$org')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'appointments',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'organization_id',
-            value: org,
-          ),
-          callback: (_) => load(),
-        )
-        .subscribe();
+    channel = ref.read(appointmentsRepositoryProvider).subscribe(org, load);
   }
 
   Future<void> load() async {
@@ -63,55 +50,21 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     final to = week
         ? from.add(const Duration(days: 7))
         : start.add(const Duration(days: 1));
-    try {
-      final result = await Supabase.instance.client
-          .from('appointments')
-          .select(
-            '*,customers(name,phone),staff(display_name),appointment_services(*,services(name))',
-          )
-          .eq('organization_id', o)
-          .gte('starts_at', from.toUtc().toIso8601String())
-          .lt('starts_at', to.toUtc().toIso8601String())
-          .order('starts_at')
-          .range(page * _pageSize, page * _pageSize + _pageSize - 1);
-      if (channel == null) await subscribe(o);
-      if (mounted) {
-        setState(() {
-          rows = List<Map<String, dynamic>>.from(result);
-          hasMore = rows.length == _pageSize;
-          loading = false;
-        });
-      }
-    } catch (_) {
-      // Offline (or the request failed): fall back to the local mirror
-      // WorkspaceMirror keeps warm for this org (spec slide 9) — read-only,
-      // and without the customers/staff/appointment_services joins (the
-      // mirror only stores flat rows), so those render with their existing
-      // "Customer"/"Staff" fallbacks below.
-      final cached = await ref.read(localStoreProvider).list('appointments');
-      final filtered =
-          cached
-              .where(
-                (r) =>
-                    r['organization_id'] == o &&
-                    r['deleted_at'] == null &&
-                    !DateTime.parse(r['starts_at'] as String).isBefore(from) &&
-                    DateTime.parse(r['starts_at'] as String).isBefore(to),
-              )
-              .toList()
-            ..sort(
-              (a, b) => (a['starts_at'] as String).compareTo(
-                b['starts_at'] as String,
-              ),
-            );
-      final pageRows = filtered.skip(page * _pageSize).take(_pageSize).toList();
-      if (mounted) {
-        setState(() {
-          rows = pageRows;
-          hasMore = pageRows.length == _pageSize;
-          loading = false;
-        });
-      }
+    // AppointmentsRepository.listForRange falls back to the local mirror
+    // WorkspaceMirror keeps warm for this org (spec slide 9) when the live
+    // fetch fails — read-only, and without the customers/staff/
+    // appointment_services joins (the mirror only stores flat rows), so
+    // those render with their existing "Customer"/"Staff" fallbacks below.
+    final result = await ref
+        .read(appointmentsRepositoryProvider)
+        .listForRange(organizationId: o, from: from, to: to, page: page);
+    if (channel == null) await subscribe(o);
+    if (mounted) {
+      setState(() {
+        rows = result;
+        hasMore = rows.length == _pageSize;
+        loading = false;
+      });
     }
   }
 
@@ -126,10 +79,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   Future<void> setStatus(String id, String value) async {
     try {
-      await Supabase.instance.client.rpc(
-        'change_appointment_status',
-        params: {'p_appointment': id, 'p_status': value},
-      );
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .changeStatus(appointmentId: id, status: value);
       await load();
     } catch (e) {
       if (mounted) {
@@ -145,10 +97,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   /// actually enforced server-side.
   Future<void> cancel(String id) async {
     try {
-      await Supabase.instance.client.rpc(
-        'cancel_appointment',
-        params: {'p_appointment': id},
-      );
+      await ref.read(appointmentsRepositoryProvider).cancel(id);
       await load();
     } catch (e) {
       if (mounted) {
@@ -173,18 +122,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       initialTime: TimeOfDay.fromDateTime(current),
     );
     if (t == null) return;
-    final value = DateTime(
-      d.year,
-      d.month,
-      d.day,
-      t.hour,
-      t.minute,
-    ).toUtc().toIso8601String();
+    final value = DateTime(d.year, d.month, d.day, t.hour, t.minute);
     try {
-      await Supabase.instance.client.rpc(
-        'reschedule_appointment',
-        params: {'p_appointment': id, 'p_new_start': value},
-      );
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .reschedule(appointmentId: id, newStart: value);
       await load();
     } catch (e) {
       if (mounted) {

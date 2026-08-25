@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/security/org_context.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../../reports/data/reports_repository.dart';
+import '../../reports/domain/report_dashboard.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -13,7 +14,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
-  Map<String, dynamic>? data;
+  ReportDashboard? data;
   bool loading = true;
   String currency = 'USD';
   @override
@@ -27,25 +28,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     if (org == null) return;
     currency = await ref.read(activeCurrencyProvider.future);
     final now = DateTime.now();
-    final d = await Supabase.instance.client.rpc(
-      'report_dashboard',
-      params: {
-        'p_org': org,
-        'p_from': DateTime(
-          now.year,
-          now.month,
-          now.day,
-        ).toUtc().toIso8601String(),
-        'p_to': DateTime(
-          now.year,
-          now.month,
-          now.day + 1,
-        ).toUtc().toIso8601String(),
-      },
+    final d = await ref.read(reportsRepositoryProvider).dashboard(
+      organizationId: org,
+      from: DateTime(now.year, now.month, now.day),
+      to: DateTime(now.year, now.month, now.day + 1),
     );
     if (mounted) {
       setState(() {
-        data = Map<String, dynamic>.from(d);
+        data = d;
         loading = false;
       });
     }
@@ -65,7 +55,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         ],
       );
     }
-    final d = data ?? {};
+    final d = data!;
     return RefreshIndicator(
       onRefresh: load,
       child: ListView(
@@ -80,19 +70,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             spacing: 16,
             runSpacing: 16,
             children: [
-              _card(
-                'Appointments',
-                '${d['appointments'] ?? 0}',
-                Icons.calendar_month,
-              ),
-              _card('Completed', '${d['completed'] ?? 0}', Icons.check_circle),
-              _card('No-shows', '${d['no_show'] ?? 0}', Icons.warning),
+              _card('Appointments', '${d.appointments}', Icons.calendar_month),
+              _card('Completed', '${d.completed}', Icons.check_circle),
+              _card('No-shows', '${d.noShow}', Icons.warning),
               _card(
                 'Revenue',
-                formatMinor(
-                  (d['revenue_minor'] as num?)?.toInt() ?? 0,
-                  currency: currency,
-                ),
+                formatMinor(d.revenueMinor, currency: currency),
                 Icons.payments,
               ),
             ],

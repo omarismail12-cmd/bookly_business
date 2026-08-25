@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../customers/data/customers_repository.dart';
+import '../../customers/domain/customer.dart';
+import '../../locations/data/locations_repository.dart';
+import '../../services/data/services_repository.dart';
+import '../../services/domain/service.dart';
+import '../../staff/data/staff_repository.dart';
+import '../data/appointments_repository.dart';
 
 class BookingPage extends ConsumerStatefulWidget {
   final String? publicSlug;
@@ -14,11 +20,9 @@ class BookingPage extends ConsumerStatefulWidget {
 }
 
 class _BookingPageState extends ConsumerState<BookingPage> {
-  List<Map<String, dynamic>> services = [],
-      staff = [],
-      customers = [],
-      locations = [],
-      slots = [];
+  List<Service> services = [];
+  List<Customer> customers = [];
+  List<Map<String, dynamic>> staff = [], locations = [], slots = [];
   String? serviceId, staffId, customerId, locationId;
   DateTime date = DateTime.now();
   bool loading = true, loadingSlots = false, booking = false;
@@ -47,58 +51,38 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
   Future<void> load() async {
     try {
-      final c = Supabase.instance.client;
       String? org;
       if (isPublic) {
-        final rows = await c
-            .from('organizations')
-            .select('id,name,timezone,currency')
-            .eq('slug', widget.publicSlug!)
-            .eq('status', 'active')
-            .limit(1);
-        if (rows.isEmpty) throw Exception('BUSINESS_NOT_FOUND');
-        org = rows.first['id'];
-        businessName = rows.first['name'];
-        businessTimezone = rows.first['timezone'];
-        currency = (rows.first['currency'] as String?) ?? currency;
+        final row = await ref
+            .read(appointmentsRepositoryProvider)
+            .organizationBySlug(widget.publicSlug!);
+        if (row == null) throw Exception('BUSINESS_NOT_FOUND');
+        org = row['id'] as String;
+        businessName = row['name'] as String?;
+        businessTimezone = row['timezone'] as String?;
+        currency = (row['currency'] as String?) ?? currency;
       } else {
         org = await ref.read(activeOrganizationProvider.future);
         currency = await ref.read(activeCurrencyProvider.future);
       }
       if (org == null) throw Exception('No active business found.');
-      final s = await c
-          .from('services')
-          .select()
-          .eq('organization_id', org)
-          .isFilter('deleted_at', null)
-          .order('name');
-      final st = await c
-          .from('staff')
-          .select()
-          .eq('organization_id', org)
-          .eq('status', 'active')
-          .order('display_name');
-      final loc = await c
-          .from('locations')
-          .select('id,name')
-          .eq('organization_id', org)
-          .isFilter('deleted_at', null)
-          .order('name');
+      final s = await ref.read(servicesRepositoryProvider).listActive(org);
+      final st = await ref
+          .read(staffRepositoryProvider)
+          .listIdNameActive(org);
+      final loc = await ref
+          .read(locationsRepositoryProvider)
+          .listIdNameActive(org);
       if (!isPublic) {
-        final cu = await c
-            .from('customers')
-            .select()
-            .eq('organization_id', org)
-            .isFilter('deleted_at', null)
-            .order('name')
-            .limit(100);
-        customers = List<Map<String, dynamic>>.from(cu);
+        customers = await ref
+            .read(customersRepositoryProvider)
+            .list(organizationId: org, paginate: false, limit: 100);
       }
       if (mounted) {
         setState(() {
-          services = List<Map<String, dynamic>>.from(s);
-          staff = List<Map<String, dynamic>>.from(st);
-          locations = List<Map<String, dynamic>>.from(loc);
+          services = s;
+          staff = st;
+          locations = loc;
           locationId = locations.isNotEmpty
               ? locations.first['id'] as String
               : null;
@@ -120,16 +104,15 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     if (serviceId == null || staffId == null) return;
     setState(() => loadingSlots = true);
     try {
-      final r = await Supabase.instance.client.rpc(
-        'get_available_slots',
-        params: {
-          'p_staff': staffId,
-          'p_service': serviceId,
-          'p_date': date.toIso8601String().substring(0, 10),
-          'p_location': locationId,
-        },
-      );
-      if (mounted) setState(() => slots = List<Map<String, dynamic>>.from(r));
+      final r = await ref
+          .read(appointmentsRepositoryProvider)
+          .availableSlots(
+            staffId: staffId!,
+            serviceId: serviceId!,
+            date: date,
+            locationId: locationId,
+          );
+      if (mounted) setState(() => slots = r);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -155,42 +138,31 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     }
     setState(() => booking = true);
     try {
-      final c = Supabase.instance.client;
+      final repo = ref.read(appointmentsRepositoryProvider);
       String id;
       if (isPublic) {
-        id = await c.rpc(
-          'create_public_booking',
-          params: {
-            'p_slug': widget.publicSlug,
-            'p_customer_name': name.text.trim(),
-            'p_customer_email': email.text.trim().isEmpty
-                ? null
-                : email.text.trim(),
-            'p_customer_phone': phone.text.trim().isEmpty
-                ? null
-                : phone.text.trim(),
-            'p_service': serviceId,
-            'p_staff': staffId,
-            'p_starts_at': start,
-            'p_location': locationId,
-          },
+        id = await repo.createPublicBooking(
+          slug: widget.publicSlug!,
+          customerName: name.text.trim(),
+          customerEmail: email.text.trim().isEmpty ? null : email.text.trim(),
+          customerPhone: phone.text.trim().isEmpty ? null : phone.text.trim(),
+          serviceId: serviceId!,
+          staffId: staffId!,
+          startsAt: start,
+          locationId: locationId,
         );
       } else {
         final o = await ref.read(activeOrganizationProvider.future);
         if (customerId == null) throw Exception('Select a customer.');
-        id = await c.rpc(
-          'create_booking',
-          params: {
-            'p_operation_id': const Uuid().v4(),
-            'p_organization': o,
-            'p_customer': customerId,
-            'p_staff': staffId,
-            'p_service': serviceId,
-            'p_starts_at': start,
-            'p_source': 'reception',
-            'p_location': locationId,
-            'p_notes': null,
-          },
+        id = await repo.createBooking(
+          operationId: const Uuid().v4(),
+          organizationId: o!,
+          customerId: customerId!,
+          staffId: staffId!,
+          serviceId: serviceId!,
+          startsAt: start,
+          source: 'reception',
+          locationId: locationId,
         );
       }
       if (mounted) {
@@ -267,9 +239,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
             items: services
                 .map(
                   (x) => DropdownMenuItem<String>(
-                    value: (x['id'] as String),
+                    value: x.id,
                     child: Text(
-                      '${x['name']} • ${formatMinor((x['price_minor'] as num).toInt(), currency: currency)}',
+                      '${x.name} • ${formatMinor(x.priceMinor, currency: currency)}',
                     ),
                   ),
                 )
@@ -304,8 +276,8 @@ class _BookingPageState extends ConsumerState<BookingPage> {
               items: customers
                   .map(
                     (x) => DropdownMenuItem<String>(
-                      value: (x['id'] as String),
-                      child: Text(x['name'] as String),
+                      value: x.id,
+                      child: Text(x.name),
                     ),
                   )
                   .toList(),

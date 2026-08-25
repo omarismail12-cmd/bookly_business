@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../data/locations_repository.dart';
+import '../domain/location.dart';
 
 class LocationsPage extends ConsumerStatefulWidget {
   const LocationsPage({super.key});
@@ -15,8 +16,7 @@ class LocationsPage extends ConsumerStatefulWidget {
 }
 
 class _LocationsPageState extends ConsumerState<LocationsPage> {
-  final supabase = Supabase.instance.client;
-  List<Map<String, dynamic>> rows = [];
+  List<Location> rows = [];
   bool loading = true;
   Object? error;
   String? organizationId;
@@ -38,13 +38,8 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
       organizationId = o;
       role = await ref.read(activeRoleProvider.future) ?? 'staff';
       if (o == null) return;
-      final r = await supabase
-          .from('locations')
-          .select()
-          .eq('organization_id', o)
-          .isFilter('deleted_at', null)
-          .order('name');
-      if (mounted) setState(() => rows = List<Map<String, dynamic>>.from(r));
+      final r = await ref.read(locationsRepositoryProvider).listActive(o);
+      if (mounted) setState(() => rows = r);
     } catch (e) {
       if (mounted) setState(() => error = e);
     } finally {
@@ -54,14 +49,10 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
 
   bool get canManage => role == 'owner' || role == 'manager';
 
-  Future<void> edit({Map<String, dynamic>? existing}) async {
-    final name = TextEditingController(text: existing?['name'] as String?);
-    final address = TextEditingController(
-      text: existing?['address'] as String?,
-    );
-    final timezone = TextEditingController(
-      text: (existing?['timezone'] as String?) ?? 'UTC',
-    );
+  Future<void> edit({Location? existing}) async {
+    final name = TextEditingController(text: existing?.name);
+    final address = TextEditingController(text: existing?.address);
+    final timezone = TextEditingController(text: existing?.timezone ?? 'UTC');
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -99,22 +90,29 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
       ),
     );
     if (ok != true) return;
-    final data = {
-      'name': name.text.trim(),
-      'address': address.text.trim().isEmpty ? null : address.text.trim(),
-      'timezone': timezone.text.trim().isEmpty ? 'UTC' : timezone.text.trim(),
-    };
+    final trimmedName = name.text.trim();
+    final trimmedAddress = address.text.trim().isEmpty
+        ? null
+        : address.text.trim();
+    final trimmedTimezone = timezone.text.trim().isEmpty
+        ? 'UTC'
+        : timezone.text.trim();
     try {
+      final repo = ref.read(locationsRepositoryProvider);
       if (existing == null) {
-        await supabase.from('locations').insert({
-          'organization_id': organizationId,
-          ...data,
-        });
+        await repo.create(
+          organizationId: organizationId!,
+          name: trimmedName,
+          address: trimmedAddress,
+          timezone: trimmedTimezone,
+        );
       } else {
-        await supabase
-            .from('locations')
-            .update(data)
-            .eq('id', existing['id']);
+        await repo.update(
+          id: existing.id,
+          name: trimmedName,
+          address: trimmedAddress,
+          timezone: trimmedTimezone,
+        );
       }
       await load();
     } catch (e) {
@@ -126,12 +124,12 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
     }
   }
 
-  Future<void> delete(Map<String, dynamic> row) async {
+  Future<void> delete(Location row) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete location?'),
-        content: Text('Remove "${row['name']}"? This cannot be undone.'),
+        content: Text('Remove "${row.name}"? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -146,10 +144,7 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
     );
     if (ok != true) return;
     try {
-      await supabase
-          .from('locations')
-          .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
-          .eq('id', row['id']);
+      await ref.read(locationsRepositoryProvider).softDelete(row.id);
       await load();
     } catch (e) {
       if (mounted) {
@@ -198,13 +193,11 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
                         leading: const CircleAvatar(
                           child: Icon(Icons.storefront_outlined),
                         ),
-                        title: Text(row['name'] ?? ''),
+                        title: Text(row.name),
                         subtitle: Text(
                           [
-                            if ((row['address'] as String?)?.isNotEmpty ==
-                                true)
-                              row['address'],
-                            row['timezone'] ?? 'UTC',
+                            if ((row.address ?? '').isNotEmpty) row.address,
+                            row.timezone,
                           ].join(' • '),
                         ),
                         trailing: canManage

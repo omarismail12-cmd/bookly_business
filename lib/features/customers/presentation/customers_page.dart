@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/local/local_store_provider.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../core/sync/sync_models.dart';
@@ -13,6 +11,8 @@ import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../data/customers_repository.dart';
+import '../domain/customer.dart';
 import 'customer_detail_dialog.dart';
 
 const _pageSize = 25;
@@ -25,7 +25,7 @@ class CustomersPage extends ConsumerStatefulWidget {
 }
 
 class _CustomersPageState extends ConsumerState<CustomersPage> {
-  List<Map<String, dynamic>> rows = [];
+  List<Customer> rows = [];
   bool loading = true;
   bool hasMore = false;
   int page = 0;
@@ -63,62 +63,24 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     currency = await ref.read(activeCurrencyProvider.future);
     if (organization == null) return;
 
-    final searchText = search.text.trim();
-    try {
-      var query = Supabase.instance.client
-          .from('customers')
-          .select()
-          .eq('organization_id', organization)
-          .isFilter('deleted_at', null);
-      if (searchText.isNotEmpty) {
-        query = query.ilike('name', '%$searchText%');
-      }
-      final result = await query
-          .order('name')
-          .range(page * _pageSize, page * _pageSize + _pageSize - 1);
-      if (mounted) {
-        setState(() {
-          rows = List<Map<String, dynamic>>.from(result);
-          hasMore = rows.length == _pageSize;
-          loading = false;
-        });
-      }
-    } catch (_) {
-      // Offline (or the request failed): fall back to the local mirror
-      // WorkspaceMirror keeps warm for this org (spec slide 9). Read-only —
-      // search/pagination still apply, just against whatever was cached on
-      // the last successful refresh.
-      final cached = await ref.read(localStoreProvider).list('customers');
-      var filtered = cached
-          .where(
-            (r) =>
-                r['organization_id'] == organization &&
-                r['deleted_at'] == null,
-          )
-          .toList();
-      if (searchText.isNotEmpty) {
-        filtered = filtered
-            .where(
-              (r) => (r['name'] as String? ?? '').toLowerCase().contains(
-                searchText.toLowerCase(),
-              ),
-            )
-            .toList();
-      }
-      filtered.sort(
-        (a, b) => (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? ''),
-      );
-      final pageRows = filtered
-          .skip(page * _pageSize)
-          .take(_pageSize)
-          .toList();
-      if (mounted) {
-        setState(() {
-          rows = pageRows;
-          hasMore = pageRows.length == _pageSize;
-          loading = false;
-        });
-      }
+    // Offline (or the request failed): CustomersRepository.list falls back
+    // to the local mirror WorkspaceMirror keeps warm for this org (spec
+    // slide 9) when offlineFallback is true. Read-only — search/pagination
+    // still apply, just against whatever was cached on the last successful
+    // refresh.
+    final result = await ref.read(customersRepositoryProvider).list(
+      organizationId: organization,
+      search: search.text,
+      page: page,
+      pageSize: _pageSize,
+      offlineFallback: true,
+    );
+    if (mounted) {
+      setState(() {
+        rows = result;
+        hasMore = rows.length == _pageSize;
+        loading = false;
+      });
     }
   }
 
@@ -188,19 +150,26 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     );
     await sync.drain();
     await load();
-    if (mounted && !rows.any((r) => r['id'] == id)) {
+    if (mounted && !rows.any((r) => r.id == id)) {
       // Still pending (offline, or the immediate drain failed) — show it
       // optimistically until SyncService confirms it synced.
       setState(
         () => rows = [
-          {...data, 'no_show_count': 0, 'total_spent_minor': 0, '_pending': true},
+          Customer(
+            id: id,
+            organizationId: organization,
+            name: data['name']!,
+            phone: data['phone'],
+            email: data['email'],
+            pending: true,
+          ),
           ...rows,
         ],
       );
     }
   }
 
-  Future<void> openDetail(Map<String, dynamic> row) async {
+  Future<void> openDetail(Customer row) async {
     await showDialog<void>(
       context: context,
       builder: (_) => CustomerDetailDialog(customer: row, role: role),
@@ -268,24 +237,20 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
             ),
           ),
         ...rows.map((row) {
-          final pending = row['_pending'] == true;
           return Card(
             child: ListTile(
-              onTap: pending ? null : () => openDetail(row),
-              title: Text(row['name']),
+              onTap: row.pending ? null : () => openDetail(row),
+              title: Text(row.name),
               subtitle: Text(
-                '${row['phone'] ?? ''} • no-shows ${row['no_show_count']}',
+                '${row.phone ?? ''} • no-shows ${row.noShowCount}',
               ),
-              trailing: pending
+              trailing: row.pending
                   ? const Tooltip(
                       message: 'Waiting to sync',
                       child: Icon(Icons.sync, size: 18),
                     )
                   : Text(
-                      formatMinor(
-                        (row['total_spent_minor'] as num? ?? 0).toInt(),
-                        currency: currency,
-                      ),
+                      formatMinor(row.totalSpentMinor, currency: currency),
                     ),
             ),
           );

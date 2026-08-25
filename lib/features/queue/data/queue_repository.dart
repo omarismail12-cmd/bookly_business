@@ -99,6 +99,29 @@ class QueueRepository {
         'change_queue_status',
         params: {'p_queue': queueId, 'p_status': status},
       );
+
+  /// Opens a Realtime channel on `queue_entries` for [organizationId],
+  /// invoking [onChange] for any insert/update/delete — so a staff member
+  /// with the Queue page open sees a walk-in added by someone else without
+  /// needing to manually refresh, matching calendar_page.dart's subscribe()
+  /// for `appointments`. Caller owns the returned channel's lifecycle
+  /// (unsubscribe/remove on dispose).
+  RealtimeChannel subscribe(String organizationId, void Function() onChange) {
+    return client
+        .channel('queue-$organizationId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'queue_entries',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'organization_id',
+            value: organizationId,
+          ),
+          callback: (_) => onChange(),
+        )
+        .subscribe();
+  }
 }
 
 final queueRepositoryProvider = Provider<QueueRepository>(

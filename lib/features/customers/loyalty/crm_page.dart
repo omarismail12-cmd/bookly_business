@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
@@ -10,6 +9,8 @@ import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../data/customers_repository.dart';
+import '../domain/customer.dart';
 
 /// Maps the UI's segment filter keys to the keys understood by the
 /// customer_segment() RPC (supabase/migrations/0003, 0010). A campaign
@@ -36,7 +37,7 @@ class CrmPage extends ConsumerStatefulWidget {
 }
 
 class _CrmPageState extends ConsumerState<CrmPage> {
-  List<Map<String, dynamic>> customers = [];
+  List<Customer> customers = [];
   List<Map<String, dynamic>> campaigns = [];
   Map<String, int> points = {};
   String segment = 'all';
@@ -66,49 +67,28 @@ class _CrmPageState extends ConsumerState<CrmPage> {
       if (o == null) return;
       currency = await ref.read(activeCurrencyProvider.future);
 
-      final c = Supabase.instance.client;
+      final repo = ref.read(customersRepositoryProvider);
       // Only the "all" segment is server-paginated; the other segments filter
       // client-side over a capped batch, so paginating them would make counts
       // (e.g. "3 customers" for a VIP page) misleading.
-      var query = c
-          .from('customers')
-          .select()
-          .eq('organization_id', o)
-          .isFilter('deleted_at', null)
-          .order('name');
-      final r = segment == 'all'
-          ? await query.range(page * _pageSize, page * _pageSize + _pageSize - 1)
-          : await query.limit(500);
+      final r = await repo.list(
+        organizationId: o,
+        page: page,
+        pageSize: _pageSize,
+        paginate: segment == 'all',
+        limit: 500,
+      );
 
-      final ids = List<Map<String, dynamic>>.from(
-        r,
-      ).map((x) => x['id'] as String).toList();
-
-      final p = <String, int>{};
-      if (ids.isNotEmpty) {
-        final l = await c
-            .from('loyalty_accounts')
-            .select('customer_id,points')
-            .inFilter('customer_id', ids);
-
-        for (final x in l) {
-          p[x['customer_id']] = ((x['points'] as num?)?.toInt() ?? 0);
-        }
-      }
-
-      final camp = await c
-          .from('campaigns')
-          .select()
-          .eq('organization_id', o)
-          .order('created_at', ascending: false)
-          .limit(20);
+      final ids = r.map((x) => x.id).toList();
+      final p = await repo.loyaltyPointsForCustomers(ids);
+      final camp = await repo.campaigns(o);
 
       if (mounted) {
         setState(() {
-          customers = List<Map<String, dynamic>>.from(r);
+          customers = r;
           hasMore = segment == 'all' && customers.length == _pageSize;
           points = p;
-          campaigns = List<Map<String, dynamic>>.from(camp);
+          campaigns = camp;
           loading = false;
         });
       }
@@ -130,36 +110,27 @@ class _CrmPageState extends ConsumerState<CrmPage> {
     load();
   }
 
-  List<Map<String, dynamic>> get filtered {
+  List<Customer> get filtered {
     if (segment == 'all') return customers;
     if (segment == 'vip') {
-      return customers
-          .where((x) => (x['total_spent_minor'] as num? ?? 0) >= 100000)
-          .toList();
+      return customers.where((x) => x.totalSpentMinor >= 100000).toList();
     }
     if (segment == 'inactive') {
       return customers.where((x) {
-        final v = x['last_visit_at'];
+        final v = x.lastVisitAt;
         return v == null ||
-            DateTime.parse(
-              v,
-            ).isBefore(DateTime.now().subtract(const Duration(days: 30)));
+            v.isBefore(DateTime.now().subtract(const Duration(days: 30)));
       }).toList();
     }
     if (segment == 'no_show') {
-      return customers
-          .where((x) => (x['no_show_count'] as num? ?? 0) >= 3)
-          .toList();
+      return customers.where((x) => x.noShowCount >= 3).toList();
     }
     if (segment == 'birthday') {
       final month = DateTime.now().month;
-      return customers.where((x) {
-        final b = x['birthday'];
-        return b != null && DateTime.parse(b).month == month;
-      }).toList();
+      return customers.where((x) => x.birthday?.month == month).toList();
     }
     if (segment == 'first') {
-      return customers.where((x) => x['last_visit_at'] == null).toList();
+      return customers.where((x) => x.lastVisitAt == null).toList();
     }
     return customers;
   }
@@ -231,12 +202,19 @@ class _CrmPageState extends ConsumerState<CrmPage> {
     );
     await sync.drain();
     await load();
-    if (mounted && !customers.any((r) => r['id'] == id)) {
+    if (mounted && !customers.any((r) => r.id == id)) {
       // Still pending (offline, or the immediate drain failed) — show it
       // optimistically until SyncService confirms it synced.
       setState(
         () => customers = [
-          {...data, 'no_show_count': 0, 'total_spent_minor': 0, '_pending': true},
+          Customer(
+            id: id,
+            organizationId: o,
+            name: data['name']!,
+            phone: data['phone'],
+            email: data['email'],
+            pending: true,
+          ),
           ...customers,
         ],
       );
@@ -313,14 +291,13 @@ class _CrmPageState extends ConsumerState<CrmPage> {
     );
 
     if (ok == true) {
-      await Supabase.instance.client.from('campaigns').insert({
-        'organization_id': o,
-        'name': n.text.trim(),
-        'segment': _segmentToDbKey[segment] ?? 'all',
-        'channel': channel,
-        'message': m.text.trim(),
-        'status': 'draft',
-      });
+      await ref.read(customersRepositoryProvider).createCampaignDraft(
+        organizationId: o,
+        name: n.text.trim(),
+        segment: _segmentToDbKey[segment] ?? 'all',
+        channel: channel,
+        message: m.text.trim(),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -334,10 +311,9 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   Future<void> sendCampaign(String id) async {
     try {
       final channel = campaigns.firstWhere((c) => c['id'] == id)['channel'];
-      final queued = await Supabase.instance.client.rpc(
-        'send_campaign',
-        params: {'p_campaign': id},
-      );
+      final queued = await ref
+          .read(customersRepositoryProvider)
+          .sendCampaign(id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -453,20 +429,19 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                 ),
                 const SizedBox(height: 8),
                 ...filtered.map((x) {
-                  final pts = points[x['id']] ?? 0;
+                  final pts = points[x.id] ?? 0;
                   return Card(
                     child: ListTile(
                       leading: CircleAvatar(
                         child: Text(
-                          (x['name'] ?? '?')
-                              .toString()
+                          (x.name.isEmpty ? '?' : x.name)
                               .substring(0, 1)
                               .toUpperCase(),
                         ),
                       ),
-                      title: Text(x['name'] ?? ''),
+                      title: Text(x.name),
                       subtitle: Text(
-                        '${x['email'] ?? ''} • no-shows ${x['no_show_count'] ?? 0}',
+                        '${x.email ?? ''} • no-shows ${x.noShowCount}',
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -474,10 +449,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                         children: [
                           Text('$pts pts'),
                           Text(
-                            formatMinor(
-                              (x['total_spent_minor'] as num? ?? 0).toInt(),
-                              currency: currency,
-                            ),
+                            formatMinor(x.totalSpentMinor, currency: currency),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
