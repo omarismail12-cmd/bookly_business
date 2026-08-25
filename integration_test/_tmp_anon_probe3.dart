@@ -1,18 +1,10 @@
 // Throwaway diagnostic — NOT part of the test suite. Deleted immediately
 // after use.
 //
-// Purpose: the first probe found that an anon client reading `staff`
-// failed with "permission denied for function current_org_ids" instead of
-// a clean RLS-filtered result. That's alarming because staff_public_select
-// (0012_public_storefront_access.sql) is supposed to let anon read staff
-// for the public booking page. This script:
-//   1. Creates a real org/service/staff/location as a signed-in user (so
-//      there's real data and a real slug to test against).
-//   2. Signs that client back out (genuinely anonymous from then on).
-//   3. Runs the exact query shapes booking_page.dart's public mode uses
-//      against organizations/services/staff/locations, and separately
-//      re-attempts the link_staff_to_user_by_email anon check now that a
-//      real staff id exists.
+// Purpose: re-verify, post-0035_fix_anon_storefront_rls.sql, that the
+// public booking flow's anon reads (organizations/services/staff/locations)
+// now return real data instead of "permission denied for function
+// current_org_ids". Same shape as the pre-fix probe that found the bug.
 import 'dart:io';
 import 'dart:math';
 
@@ -27,9 +19,6 @@ Future<void> main() async {
   final client = SupabaseClient(
     url,
     key,
-    // PKCE (the package default) needs an async code-verifier store not
-    // available outside supabase_flutter — see test_helpers.dart's doc
-    // comment. Implicit flow needs no such storage.
     authOptions: const AuthClientOptions(authFlowType: AuthFlowType.implicit),
   );
 
@@ -61,6 +50,11 @@ Future<void> main() async {
       .select()
       .single();
 
+  await client.from('staff_services').insert({
+    'staff_id': staff['id'],
+    'service_id': service['id'],
+  });
+
   await client.from('locations').insert({
     'organization_id': orgId,
     'name': 'Probe Location',
@@ -76,7 +70,7 @@ Future<void> main() async {
     try {
       final result = await run();
       final n = result is List ? result.length : 1;
-      print('OK   $label -> $n row(s)');
+      print('OK   $label -> $n row(s): $result');
     } on PostgrestException catch (e) {
       print('FAIL $label -> PostgrestException: "${e.message}" '
           '(code: ${e.code})');
@@ -85,7 +79,6 @@ Future<void> main() async {
     }
   }
 
-  // Exact shape booking_page.dart's public mode uses (org resolution by slug).
   await probe(
     'organizations by slug (booking_page.dart public-mode org lookup)',
     () => client
@@ -127,6 +120,14 @@ Future<void> main() async {
   );
 
   await probe(
+    'staff_services for org (booking_page.dart eligibility filter)',
+    () => client
+        .from('staff_services')
+        .select()
+        .eq('staff_id', staff['id']),
+  );
+
+  await probe(
     'get_available_slots RPC (anon-granted per 0015)',
     () => client.rpc(
       'get_available_slots',
@@ -137,26 +138,4 @@ Future<void> main() async {
       },
     ),
   );
-
-  print('\n--- link_staff_to_user_by_email, now with a real staff id ---');
-  try {
-    final result = await client.rpc(
-      'link_staff_to_user_by_email',
-      params: {
-        'p_staff': staff['id'],
-        'p_email': 'anon-probe-nonexistent-user@example.com',
-      },
-    );
-    print('UNEXPECTED SUCCESS -> $result');
-  } on PostgrestException catch (e) {
-    print('PostgrestException -> message: "${e.message}", code: ${e.code}');
-    if (e.message.contains('FORBIDDEN')) {
-      print('=> Blocked by has_org_role() as expected.');
-    } else {
-      print('=> NOT blocked by has_org_role() (or blocked by something '
-          'else entirely — see message above).');
-    }
-  } catch (e) {
-    print('Non-Postgrest error -> $e');
-  }
 }
