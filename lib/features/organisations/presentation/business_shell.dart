@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/analytics/firebase_crash_reporting.dart';
-import '../../../core/local/local_store_factory.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/notifications/firebase_notification_service.dart';
 import '../../../core/permissions/app_role.dart';
@@ -22,13 +22,14 @@ import '../../packages/presentation/offers_page.dart';
 import '../../reports/presentation/reports_page.dart';
 import '../../locations/presentation/locations_page.dart';
 import '../../staff_portal/presentation/staff_today_page.dart';
+import '../../../shared/widgets/language_switcher_button.dart';
 import '../../../shared/widgets/sync_status_banner.dart';
 import 'organization_setup_page.dart';
 
-class BusinessShell extends StatefulWidget {
+class BusinessShell extends ConsumerStatefulWidget {
   const BusinessShell({super.key});
   @override
-  State<BusinessShell> createState() => _BusinessShellState();
+  ConsumerState<BusinessShell> createState() => _BusinessShellState();
 }
 
 class _NavItem {
@@ -39,7 +40,7 @@ class _NavItem {
   const _NavItem(this.label, this.icon, this.page, this.allowed);
 }
 
-class _BusinessShellState extends State<BusinessShell> {
+class _BusinessShellState extends ConsumerState<BusinessShell> {
   int index = 0;
   OrganizationMembership? membership;
   bool loading = true;
@@ -51,14 +52,17 @@ class _BusinessShellState extends State<BusinessShell> {
   // every business tab lives under, rather than inside SyncService (which
   // stays deliberately unaware of "which org" — see its class doc) or each
   // individual page (which would mean 6+ places independently deciding when
-  // to refresh the same cache).
-  final _mirror = WorkspaceMirror(Supabase.instance.client, createLocalStore());
+  // to refresh the same cache). Read from workspaceMirrorProvider so this
+  // shell shares the same Riverpod-registered instance as the rest of the
+  // sync/local layer instead of constructing its own.
+  late final WorkspaceMirror _mirror;
   Timer? _mirrorTimer;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
   void initState() {
     super.initState();
+    _mirror = ref.read(workspaceMirrorProvider);
     load();
     _mirrorTimer = Timer.periodic(
       const Duration(minutes: 5),
@@ -271,6 +275,7 @@ class _BusinessShellState extends State<BusinessShell> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(child: Text(role.name)),
               ),
+              const LanguageSwitcherButton(),
               IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
             ],
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
+import '../../../shared/widgets/language_switcher_button.dart';
 import '../../../shared/widgets/sync_status_banner.dart';
 import 'customer_loyalty_page.dart';
 import 'customer_offers_page.dart';
@@ -10,9 +11,10 @@ import 'my_appointments_page.dart';
 
 /// Customer portal shell — the customer-facing counterpart to
 /// BusinessShell. Deliberately much simpler: no role gating (every signed
-/// in customer sees the same three tabs), no organization concept (a
-/// customer isn't a member of any organization; their data is scoped by
-/// customers.profile_id via RLS).
+/// in customer sees the same four tabs: My appointments, Find & book,
+/// Loyalty, My offers), no organization concept (a customer isn't a member
+/// of any organization; their data is scoped by customers.profile_id via
+/// RLS).
 class CustomerShell extends StatefulWidget {
   const CustomerShell({super.key});
 
@@ -50,6 +52,7 @@ class _CustomerShellState extends State<CustomerShell> {
       appBar: AppBar(
         title: Text(labels[index]),
         actions: [
+          const LanguageSwitcherButton(),
           IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
         ],
       ),

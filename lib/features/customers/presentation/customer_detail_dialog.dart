@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../payments/data/payments_repository.dart';
 
 /// Customer 360 view: profile + notes, loyalty points, purchased packages
 /// and memberships, and coupon redemption. Selling/redeeming actions are
@@ -82,7 +83,7 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
         .order('purchased_at', ascending: false);
     final mems = await c
         .from('customer_memberships')
-        .select('id,status,starts_at,ends_at,memberships(name)')
+        .select('id,membership_id,status,starts_at,ends_at,memberships(name)')
         .eq('customer_id', customerId)
         .order('starts_at', ascending: false);
     final catalogPkgs = await c
@@ -394,18 +395,123 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
     }
   }
 
+  Map<String, dynamic>? _catalogMembership(String? membershipId) {
+    if (membershipId == null) return null;
+    for (final m in catalogMemberships) {
+      if (m['id'] == membershipId) return m;
+    }
+    return null;
+  }
+
+  Future<void> cancelMembership(Map<String, dynamic> row) async {
+    final name = (row['memberships'] as Map?)?['name'] ?? 'Membership';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Cancel membership?'),
+        content: Text(
+          'Cancel "$name"? The customer loses its discount immediately.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Back'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel membership'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await Supabase.instance.client
+          .from('customer_memberships')
+          .update({'status': 'cancelled'})
+          .eq('id', row['id']);
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not cancel membership: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> renewMembership(Map<String, dynamic> row) async {
+    final catalog = _catalogMembership(row['membership_id'] as String?);
+    if (catalog == null) return;
+    String method = 'cash';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text('Renew ${catalog['name']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Price: ${formatMinor((catalog['price_minor'] as num).toInt(), currency: currency)}',
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: method,
+                decoration: const InputDecoration(labelText: 'Payment method'),
+                items: const [
+                  DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                  DropdownMenuItem(value: 'card', child: Text('Card')),
+                  DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
+                ],
+                onChanged: (v) => setLocal(() => method = v ?? 'cash'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Renew'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    try {
+      // renew_membership() extends this same row's ends_at in place
+      // (carrying over remaining time) — a genuinely new sale would go
+      // through sellMembership()/purchase_membership() above instead.
+      await Supabase.instance.client.rpc(
+        'renew_membership',
+        params: {
+          'p_idempotency': const Uuid().v4(),
+          'p_customer_membership': row['id'],
+          'p_method': method,
+        },
+      );
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not renew membership: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> redeemCoupon() async {
     if (coupon.text.trim().isEmpty) return;
     try {
-      final result = await Supabase.instance.client.rpc(
-        'redeem_coupon',
-        params: {
-          'p_org': organizationId,
-          'p_code': coupon.text.trim(),
-          'p_customer': customerId,
-        },
+      final data = await ref.read(paymentsRepositoryProvider).redeemCoupon(
+        organizationId: organizationId,
+        code: coupon.text.trim(),
+        customerId: customerId,
       );
-      final data = Map<String, dynamic>.from(result as Map);
       final pct = data['discount_percent'];
       final minor = data['discount_minor'];
       final discount = pct != null
@@ -579,8 +685,19 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                       ),
                       if (memberships.isEmpty)
                         const Text('No memberships owned.'),
-                      ...memberships.map(
-                        (m) => ListTile(
+                      ...memberships.map((m) {
+                        // This schema has no distinct "expired" status —
+                        // status is only ever 'active' or 'cancelled'
+                        // (renew_membership() refuses to touch a
+                        // cancelled row); an active-but-past-ends_at row
+                        // is still 'active'. So Renew (early or lapsed)
+                        // is offered on any non-cancelled row with a
+                        // matching active catalog entry, alongside
+                        // Cancel.
+                        final cancelled = m['status'] == 'cancelled';
+                        final renewable =
+                            !cancelled && _catalogMembership(m['membership_id'] as String?) != null;
+                        return ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: Text(
@@ -589,8 +706,24 @@ class _CustomerDetailDialogState extends ConsumerState<CustomerDetailDialog> {
                           subtitle: Text(
                             '${m['status']} • until ${DateTime.parse(m['ends_at']).toLocal().toString().substring(0, 10)}',
                           ),
-                        ),
-                      ),
+                          trailing: !canTransact || cancelled
+                              ? null
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (renewable)
+                                      TextButton(
+                                        onPressed: () => renewMembership(m),
+                                        child: const Text('Renew'),
+                                      ),
+                                    TextButton(
+                                      onPressed: () => cancelMembership(m),
+                                      child: const Text('Cancel'),
+                                    ),
+                                  ],
+                                ),
+                        );
+                      }),
                       if (canTransact) ...[
                         const Divider(height: 32),
                         Text(

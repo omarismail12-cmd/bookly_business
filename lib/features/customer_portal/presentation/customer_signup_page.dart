@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../shared/validators/validators.dart';
+import '../../auth/data/auth_service.dart';
 
 class CustomerSignupPage extends StatefulWidget {
   const CustomerSignupPage({super.key});
@@ -14,6 +15,7 @@ class CustomerSignupPage extends StatefulWidget {
 
 class _CustomerSignupPageState extends State<CustomerSignupPage> {
   final _formKey = GlobalKey<FormState>();
+  final _auth = AuthService(Supabase.instance.client);
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
@@ -36,7 +38,7 @@ class _CustomerSignupPageState extends State<CustomerSignupPage> {
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     try {
-      final response = await Supabase.instance.client.auth.signUp(
+      final response = await _auth.signUp(
         email: _email.text.trim(),
         password: _password.text,
         data: {'full_name': _name.text.trim()},

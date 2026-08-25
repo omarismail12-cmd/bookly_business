@@ -95,19 +95,25 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
     }
   }
 
-  Future<void> add() async {
-    final name = TextEditingController();
-    final price = TextEditingController(text: '10000');
-    final uses = TextEditingController(text: '5');
-    final expires = TextEditingController(text: '90');
-    String? serviceId = services.isNotEmpty
-        ? services.first['id'] as String
-        : null;
+  Future<void> edit({PackageOffer? existing}) async {
+    final name = TextEditingController(text: existing?.name);
+    final price = TextEditingController(
+      text: '${existing?.priceMinor ?? 10000}',
+    );
+    final uses = TextEditingController(text: '${existing?.totalUses ?? 5}');
+    final expires = TextEditingController(
+      text: existing == null
+          ? '90'
+          : (existing.expiresDays != null ? '${existing.expiresDays}' : ''),
+    );
+    String? serviceId =
+        existing?.serviceId ??
+        (services.isNotEmpty ? services.first['id'] as String : null);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('New package'),
+          title: Text(existing == null ? 'New package' : 'Edit package'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -165,21 +171,56 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
       ),
     );
     if (ok != true || organizationId == null) return;
-    await ref.read(packagesRepositoryProvider).createPackage(
-      organizationId: organizationId!,
-      name: name.text.trim(),
-      serviceId: serviceId,
-      priceMinor: int.tryParse(price.text.trim()) ?? 0,
-      totalUses: int.tryParse(uses.text.trim()) ?? 1,
-      expiresDays: int.tryParse(expires.text.trim()),
-    );
-    load();
+    final repo = ref.read(packagesRepositoryProvider);
+    try {
+      if (existing == null) {
+        await repo.createPackage(
+          organizationId: organizationId!,
+          name: name.text.trim(),
+          serviceId: serviceId,
+          priceMinor: int.tryParse(price.text.trim()) ?? 0,
+          totalUses: int.tryParse(uses.text.trim()) ?? 1,
+          expiresDays: int.tryParse(expires.text.trim()),
+        );
+      } else {
+        await repo.updatePackage(
+          id: existing.id,
+          name: name.text.trim(),
+          serviceId: serviceId,
+          priceMinor: int.tryParse(price.text.trim()) ?? existing.priceMinor,
+          totalUses: int.tryParse(uses.text.trim()) ?? existing.totalUses,
+          expiresDays: int.tryParse(expires.text.trim()),
+        );
+      }
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save package: $e')));
+      }
+    }
+  }
+
+  Future<void> toggleActive(PackageOffer row) async {
+    try {
+      await ref
+          .read(packagesRepositoryProvider)
+          .setActive('packages', row.id, !row.active);
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update package: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     floatingActionButton: FloatingActionButton(
-      onPressed: add,
+      onPressed: () => edit(),
       child: const Icon(Icons.add),
     ),
     body: loading
@@ -199,8 +240,33 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                               '${r.expiresDays != null ? ' • expires in ${r.expiresDays}d' : ''}'
                               '${!r.active ? ' • inactive' : ''}',
                             ),
-                            trailing: Text(
-                              formatMinor(r.priceMinor, currency: currency),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  formatMinor(
+                                    r.priceMinor,
+                                    currency: currency,
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (v) => v == 'edit'
+                                      ? edit(existing: r)
+                                      : toggleActive(r),
+                                  itemBuilder: (_) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Edit'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'toggle',
+                                      child: Text(
+                                        r.active ? 'Deactivate' : 'Reactivate',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -242,15 +308,21 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
     }
   }
 
-  Future<void> add() async {
-    final name = TextEditingController();
-    final price = TextEditingController(text: '5000');
-    final discount = TextEditingController(text: '10');
-    final duration = TextEditingController(text: '30');
+  Future<void> edit({Membership? existing}) async {
+    final name = TextEditingController(text: existing?.name);
+    final price = TextEditingController(
+      text: '${existing?.priceMinor ?? 5000}',
+    );
+    final discount = TextEditingController(
+      text: '${existing?.discountPercent ?? 10}',
+    );
+    final duration = TextEditingController(
+      text: '${existing?.durationDays ?? 30}',
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('New membership'),
+        title: Text(existing == null ? 'New membership' : 'Edit membership'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -296,20 +368,56 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
       ),
     );
     if (ok != true || organizationId == null) return;
-    await ref.read(packagesRepositoryProvider).createMembership(
-      organizationId: organizationId!,
-      name: name.text.trim(),
-      priceMinor: int.tryParse(price.text.trim()) ?? 0,
-      discountPercent: double.tryParse(discount.text.trim()) ?? 0,
-      durationDays: int.tryParse(duration.text.trim()) ?? 30,
-    );
-    load();
+    final repo = ref.read(packagesRepositoryProvider);
+    try {
+      if (existing == null) {
+        await repo.createMembership(
+          organizationId: organizationId!,
+          name: name.text.trim(),
+          priceMinor: int.tryParse(price.text.trim()) ?? 0,
+          discountPercent: double.tryParse(discount.text.trim()) ?? 0,
+          durationDays: int.tryParse(duration.text.trim()) ?? 30,
+        );
+      } else {
+        await repo.updateMembership(
+          id: existing.id,
+          name: name.text.trim(),
+          priceMinor: int.tryParse(price.text.trim()) ?? existing.priceMinor,
+          discountPercent:
+              double.tryParse(discount.text.trim()) ?? existing.discountPercent,
+          durationDays:
+              int.tryParse(duration.text.trim()) ?? existing.durationDays,
+        );
+      }
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save membership: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> toggleActive(Membership row) async {
+    try {
+      await ref
+          .read(packagesRepositoryProvider)
+          .setActive('memberships', row.id, !row.active);
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update membership: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     floatingActionButton: FloatingActionButton(
-      onPressed: add,
+      onPressed: () => edit(),
       child: const Icon(Icons.add),
     ),
     body: loading
@@ -327,8 +435,33 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
                               '${r.discountPercent}% off • ${r.durationDays} days'
                               '${!r.active ? ' • inactive' : ''}',
                             ),
-                            trailing: Text(
-                              formatMinor(r.priceMinor, currency: currency),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  formatMinor(
+                                    r.priceMinor,
+                                    currency: currency,
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (v) => v == 'edit'
+                                      ? edit(existing: r)
+                                      : toggleActive(r),
+                                  itemBuilder: (_) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Edit'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'toggle',
+                                      child: Text(
+                                        r.active ? 'Deactivate' : 'Reactivate',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -370,14 +503,20 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
     }
   }
 
-  Future<void> add() async {
-    final code = TextEditingController();
-    final percent = TextEditingController(text: '10');
-    final limit = TextEditingController();
+  Future<void> edit({Coupon? existing}) async {
+    final code = TextEditingController(text: existing?.code);
+    final percent = TextEditingController(
+      text: existing?.discountPercent != null
+          ? '${existing!.discountPercent}'
+          : (existing == null ? '10' : ''),
+    );
+    final limit = TextEditingController(
+      text: existing?.usageLimit != null ? '${existing!.usageLimit}' : '',
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('New coupon'),
+        title: Text(existing == null ? 'New coupon' : 'Edit coupon'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -420,19 +559,52 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
       ),
     );
     if (ok != true || organizationId == null) return;
-    await ref.read(packagesRepositoryProvider).createCoupon(
-      organizationId: organizationId!,
-      code: code.text.trim().toUpperCase(),
-      discountPercent: double.tryParse(percent.text.trim()),
-      usageLimit: int.tryParse(limit.text.trim()),
-    );
-    load();
+    final repo = ref.read(packagesRepositoryProvider);
+    try {
+      if (existing == null) {
+        await repo.createCoupon(
+          organizationId: organizationId!,
+          code: code.text.trim().toUpperCase(),
+          discountPercent: double.tryParse(percent.text.trim()),
+          usageLimit: int.tryParse(limit.text.trim()),
+        );
+      } else {
+        await repo.updateCoupon(
+          id: existing.id,
+          code: code.text.trim().toUpperCase(),
+          discountPercent: double.tryParse(percent.text.trim()),
+          usageLimit: int.tryParse(limit.text.trim()),
+        );
+      }
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save coupon: $e')));
+      }
+    }
+  }
+
+  Future<void> toggleActive(Coupon row) async {
+    try {
+      await ref
+          .read(packagesRepositoryProvider)
+          .setActive('coupons', row.id, !row.active);
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not update coupon: $e')));
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     floatingActionButton: FloatingActionButton(
-      onPressed: add,
+      onPressed: () => edit(),
       child: const Icon(Icons.add),
     ),
     body: loading
@@ -451,13 +623,35 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
                               '${r.expiresAt != null ? ' • expires ${r.expiresAt!.toLocal().toString().substring(0, 10)}' : ''}'
                               '${!r.active ? ' • inactive' : ''}',
                             ),
-                            trailing: Text(
-                              r.discountPercent != null
-                                  ? '${r.discountPercent}%'
-                                  : formatMinor(
-                                      r.discountMinor ?? 0,
-                                      currency: currency,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  r.discountPercent != null
+                                      ? '${r.discountPercent}%'
+                                      : formatMinor(
+                                          r.discountMinor ?? 0,
+                                          currency: currency,
+                                        ),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (v) => v == 'edit'
+                                      ? edit(existing: r)
+                                      : toggleActive(r),
+                                  itemBuilder: (_) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Edit'),
                                     ),
+                                    PopupMenuItem(
+                                      value: 'toggle',
+                                      child: Text(
+                                        r.active ? 'Deactivate' : 'Reactivate',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),

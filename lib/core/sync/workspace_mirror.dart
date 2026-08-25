@@ -18,13 +18,19 @@ class WorkspaceMirror {
   final LocalStore store;
   WorkspaceMirror(this.client, this.store);
 
-  /// Tables this mirror keeps warm — the ones the spec calls out by name.
+  /// Tables this mirror keeps warm — the ones the spec calls out by name,
+  /// plus the offers catalog (packages/memberships/coupons) so
+  /// PackagesRepository can fall back to a cache like every other
+  /// repository in this grouping does.
   static const mirroredTables = [
     'appointments',
     'queue_entries',
     'customers',
     'services',
     'staff',
+    'packages',
+    'memberships',
+    'coupons',
   ];
 
   /// Refreshes the local mirror for [organizationId] from the live backend.
@@ -83,6 +89,22 @@ class WorkspaceMirror {
           .select()
           .eq('organization_id', organizationId)
           .isFilter('deleted_at', null),
+    );
+
+    await _mirror(
+      'packages',
+      () => client.from('packages').select().eq('organization_id', organizationId),
+    );
+
+    await _mirror(
+      'memberships',
+      () =>
+          client.from('memberships').select().eq('organization_id', organizationId),
+    );
+
+    await _mirror(
+      'coupons',
+      () => client.from('coupons').select().eq('organization_id', organizationId),
     );
   }
 

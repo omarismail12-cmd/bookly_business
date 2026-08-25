@@ -8,8 +8,8 @@ import '../domain/staff_member.dart';
 
 /// Wraps every Supabase call for the `staff` table and staff role
 /// assignment. Presentation code must go through this instead of calling
-/// `Supabase.instance.client` directly (mirrors OrganizationRepository's
-/// style in lib/features/organisations/data/organization_repository.dart).
+/// `Supabase.instance.client` directly, so RLS-respecting query shape lives
+/// in one place per feature.
 ///
 /// `staff` is one of the tables [WorkspaceMirror] keeps warm for offline
 /// reading (spec slide 9) — `listActive`/`listIdNameActive` fall back to

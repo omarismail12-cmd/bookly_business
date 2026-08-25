@@ -11,9 +11,7 @@ import '../domain/service.dart';
 
 /// Wraps every Supabase call for the `services` table. Presentation code
 /// must go through this instead of calling `Supabase.instance.client`
-/// directly, so RLS-respecting query shape lives in one place per feature
-/// (mirrors OrganizationRepository's style in
-/// lib/features/organisations/data/organization_repository.dart).
+/// directly, so RLS-respecting query shape lives in one place per feature.
 ///
 /// `services` is one of the tables [WorkspaceMirror] keeps warm for offline
 /// reading (spec slide 9). `listActive`/`listIdName` fall back to that

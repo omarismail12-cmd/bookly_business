@@ -64,8 +64,8 @@ class PaymentsRepository {
   Future<Map<String, dynamic>> redeemCoupon({
     required String organizationId,
     required String code,
-    required String? customerId,
-    required String appointmentId,
+    String? customerId,
+    String? appointmentId,
   }) async {
     final result = await client.rpc(
       'redeem_coupon',

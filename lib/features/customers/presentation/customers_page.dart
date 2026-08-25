@@ -10,6 +10,7 @@ import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_service.dart';
+import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import 'customer_detail_dialog.dart';
@@ -30,6 +31,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   int page = 0;
   String role = 'staff';
   String? organizationId;
+  String currency = 'USD';
   final search = TextEditingController();
   Timer? _debounce;
 
@@ -58,6 +60,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
     final organization = await ref.read(activeOrganizationProvider.future);
     organizationId = organization;
     role = await ref.read(activeRoleProvider.future) ?? 'staff';
+    currency = await ref.read(activeCurrencyProvider.future);
     if (organization == null) return;
 
     final searchText = search.text.trim();
@@ -278,7 +281,12 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                       message: 'Waiting to sync',
                       child: Icon(Icons.sync, size: 18),
                     )
-                  : Text('${(row['total_spent_minor'] as num) / 100}'),
+                  : Text(
+                      formatMinor(
+                        (row['total_spent_minor'] as num? ?? 0).toInt(),
+                        currency: currency,
+                      ),
+                    ),
             ),
           );
         }),

@@ -8,8 +8,13 @@ class AuthService {
   Future<AuthResponse> signUp({
     required String email,
     required String password,
+    Map<String, dynamic>? data,
   }) async {
-    return await _supabase.auth.signUp(email: email, password: password);
+    return await _supabase.auth.signUp(
+      email: email,
+      password: password,
+      data: data,
+    );
   }
 
   Future<AuthResponse> signIn({

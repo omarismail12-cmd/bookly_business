@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/app.dart';
 import 'core/analytics/firebase_crash_reporting.dart';
 import 'core/config/app_config.dart';
+import 'core/localization/locale_provider.dart';
 
 Future<void> main() async {
   await runZonedGuarded(
@@ -22,7 +23,20 @@ Future<void> main() async {
         url: AppConfig.supabaseUrl,
         publishableKey: AppConfig.supabaseAnonKey,
       );
-      runApp(const ProviderScope(child: BooklyApp()));
+      // Loaded before the first frame so the app renders in the user's
+      // previously-chosen language immediately, instead of flashing the
+      // device locale first and then switching once this resolves.
+      final storedLocale = await loadStoredLocaleOverride();
+      runApp(
+        ProviderScope(
+          overrides: [
+            localeOverrideProvider.overrideWith(
+              () => LocaleOverride(storedLocale),
+            ),
+          ],
+          child: const BooklyApp(),
+        ),
+      );
     },
     (error, stackTrace) {
       crashReporting.recordError(error, stackTrace);

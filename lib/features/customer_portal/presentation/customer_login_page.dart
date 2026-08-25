@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../shared/validators/validators.dart';
+import '../../auth/data/auth_service.dart';
 import 'customer_signup_page.dart';
 
 /// Customer-facing login, kept deliberately separate from the business
@@ -20,6 +21,7 @@ class CustomerLoginPage extends StatefulWidget {
 
 class _CustomerLoginPageState extends State<CustomerLoginPage> {
   final _formKey = GlobalKey<FormState>();
+  final _auth = AuthService(Supabase.instance.client);
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
@@ -37,7 +39,7 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      await _auth.signIn(
         email: _email.text.trim(),
         password: _password.text,
       );

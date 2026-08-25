@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../shared/formatters/currency.dart';
 import '../data/services_repository.dart';
 import '../domain/service.dart';
 
@@ -16,6 +17,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
   List<Service> rows = [];
   bool loading = true;
   String? organizationId;
+  String currency = 'USD';
 
   @override
   void initState() {
@@ -27,6 +29,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     final o = await ref.read(activeOrganizationProvider.future);
     organizationId = o;
     if (o == null) return;
+    currency = await ref.read(activeCurrencyProvider.future);
 
     final result = await ref
         .read(servicesRepositoryProvider)
@@ -59,20 +62,24 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
               ),
               TextField(
                 controller: durationController,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'Duration (min)'),
               ),
               TextField(
                 controller: bufferController,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'Buffer (min)'),
               ),
               TextField(
                 controller: priceController,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Price minor units',
                 ),
               ),
               TextField(
                 controller: depositController,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Deposit required (minor units, 0 = none)',
                 ),
@@ -93,15 +100,30 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
       ),
     );
     if (ok != true) return;
+    final durationMin = int.tryParse(durationController.text.trim());
+    final bufferMin = int.tryParse(bufferController.text.trim());
+    final priceMinor = int.tryParse(priceController.text.trim());
+    if (durationMin == null || bufferMin == null || priceMinor == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Duration, buffer and price must be whole numbers.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     final o = organizationId ?? await ref.read(activeOrganizationProvider.future);
     if (o == null) return;
     await ref.read(servicesRepositoryProvider).create(
       organizationId: o,
       name: nameController.text.trim(),
-      durationMin: int.parse(durationController.text),
-      bufferMin: int.parse(bufferController.text),
-      priceMinor: int.parse(priceController.text),
-      depositRequiredMinor: int.tryParse(depositController.text) ?? 0,
+      durationMin: durationMin,
+      bufferMin: bufferMin,
+      priceMinor: priceMinor,
+      depositRequiredMinor: int.tryParse(depositController.text.trim()) ?? 0,
     );
     load();
   }
@@ -146,6 +168,37 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     }
   }
 
+  Future<void> delete(Service row) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete service?'),
+        content: Text('Remove "${row.name}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(servicesRepositoryProvider).softDelete(row.id);
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not delete service: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -170,18 +223,23 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                     title: Text(row.name),
                     subtitle: Text(
                       '${row.durationMin} min • buffer ${row.bufferMin} min'
-                      '${row.depositRequiredMinor > 0 ? ' • deposit ${row.depositRequiredMinor / 100}' : ''}'
+                      '${row.depositRequiredMinor > 0 ? ' • deposit ${formatMinor(row.depositRequiredMinor, currency: currency)}' : ''}'
                       '${row.description != null && row.description!.isNotEmpty ? '\n${row.description}' : ''}',
                     ),
                     isThreeLine: row.description != null && row.description!.isNotEmpty,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('${row.priceMinor / 100}'),
+                        Text(formatMinor(row.priceMinor, currency: currency)),
                         IconButton(
                           tooltip: 'Edit description',
                           onPressed: () => editDescription(row),
                           icon: const Icon(Icons.edit_outlined),
+                        ),
+                        IconButton(
+                          tooltip: 'Delete',
+                          onPressed: () => delete(row),
+                          icon: const Icon(Icons.delete_outline),
                         ),
                       ],
                     ),

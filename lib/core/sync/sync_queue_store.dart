@@ -1,7 +1,10 @@
 import 'sync_models.dart';
 
-/// Durable sync queue contract required by Phase 6.
-/// Replace the current in-memory queue with a Drift-backed implementation.
+/// Durable sync queue contract required by Phase 6. Backed by a raw
+/// `sqlite3`-based implementation on native platforms ([SqliteSyncQueueStore])
+/// and `localStorage` on web ([InMemorySyncQueueStore]) — see
+/// sync_queue_store_factory.dart. Not Drift-backed: Drift's codegen is
+/// unresolvable under this project's pinned Dart SDK.
 abstract interface class SyncQueueStore {
   Future<void> enqueue(SyncOperation operation);
   Future<List<SyncOperation>> pending();

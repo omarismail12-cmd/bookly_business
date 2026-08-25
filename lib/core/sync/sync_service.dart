@@ -92,14 +92,6 @@ class SyncService {
         switch (op.operation) {
           case 'create_customer':
             await client.from('customers').upsert(op.payload);
-          case 'update_customer':
-            // Legacy no-conflict-check path, kept for payloads already
-            // queued under this name; new callers use
-            // 'update_customer_notes' below.
-            await client
-                .from('customers')
-                .update(op.payload)
-                .eq('id', op.entityId);
           case 'update_customer_notes':
             // Covers both customer-facing private notes (edited from
             // customer_detail_dialog.dart) and staff's next-visit

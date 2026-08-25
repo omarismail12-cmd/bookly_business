@@ -4,5 +4,6 @@ abstract interface class CrashReporting {
   Future<void> setUser(String? userId);
 }
 
-/// Concrete Firebase Crashlytics adapter belongs here after Firebase platform
-/// configuration is added.
+/// See [FirebaseCrashReporting] in this folder for the concrete Firebase
+/// Crashlytics adapter — a safe no-op until a real Firebase project is
+/// configured for the current platform.

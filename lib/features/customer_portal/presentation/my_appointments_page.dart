@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
+import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/async_state.dart';
 
 /// Appointments for the signed-in customer, across every business they've
@@ -35,7 +36,7 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
       final result = await Supabase.instance.client
           .from('appointments')
           .select(
-            '*,organizations(name),staff(display_name),appointment_services(*,services(name))',
+            '*,organizations(name,currency),staff(display_name),appointment_services(*,services(name))',
           )
           .order('starts_at', ascending: false)
           .limit(100);
@@ -53,6 +54,59 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
         });
       }
     }
+  }
+
+  Future<void> openDetail(Map<String, dynamic> row) {
+    final start = DateTime.parse(row['starts_at']).toLocal();
+    final org = (row['organizations'] as Map?)?['name'] as String?;
+    final currency = (row['organizations'] as Map?)?['currency'] as String? ?? 'USD';
+    final staff = (row['staff'] as Map?)?['display_name'] as String?;
+    final services = List<Map<String, dynamic>>.from(
+      row['appointment_services'] ?? [],
+    ).map((s) => (s['services'] as Map?)?['name']).whereType<String>().toList();
+    final depositRequired = (row['deposit_required_minor'] as num?)?.toInt() ?? 0;
+    final depositPaid = (row['deposit_paid_minor'] as num?)?.toInt() ?? 0;
+    return showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(org?.isNotEmpty == true ? org! : 'Appointment'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '
+                '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+              ),
+              const SizedBox(height: 8),
+              Text('Status: ${row['status']}'),
+              if (staff != null && staff.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('Staff: $staff'),
+              ],
+              if (services.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('Services: ${services.join(', ')}'),
+              ],
+              if (depositRequired > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Deposit: ${formatMinor(depositPaid, currency: currency)} of '
+                  '${formatMinor(depositRequired, currency: currency)} paid',
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -85,6 +139,7 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
                     .join(', ');
                 return Card(
                   child: ListTile(
+                    onTap: () => openDetail(row),
                     title: Text(org),
                     subtitle: Text(
                       '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '

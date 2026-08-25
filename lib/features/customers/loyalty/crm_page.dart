@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../core/sync/sync_models.dart';
+import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 
 /// Maps the UI's segment filter keys to the keys understood by the
-/// customer_segment() RPC (supabase/migrations/0003, 0010), so a campaign's
-/// stored segment can later be expanded server-side via
-/// generate_campaign_recipients().
+/// customer_segment() RPC (supabase/migrations/0003, 0010). A campaign
+/// created here just stores this mapped segment key; this file never calls
+/// generate_campaign_recipients() or customer_segment() itself —
+/// sendCampaign() below calls send_campaign(), which is what expands the
+/// stored segment into campaign_recipients server-side.
 const _pageSize = 25;
 
 const Map<String, String> _segmentToDbKey = {
@@ -35,6 +41,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   Map<String, int> points = {};
   String segment = 'all';
   bool loading = true;
+  Object? error;
   String? organizationId;
   String currency = 'USD';
   int page = 0;
@@ -47,56 +54,71 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   }
 
   Future<void> load() async {
-    final o = await ref.read(activeOrganizationProvider.future);
-    organizationId = o;
-    if (o == null) return;
-    currency = await ref.read(activeCurrencyProvider.future);
-
-    final c = Supabase.instance.client;
-    // Only the "all" segment is server-paginated; the other segments filter
-    // client-side over a capped batch, so paginating them would make counts
-    // (e.g. "3 customers" for a VIP page) misleading.
-    var query = c
-        .from('customers')
-        .select()
-        .eq('organization_id', o)
-        .isFilter('deleted_at', null)
-        .order('name');
-    final r = segment == 'all'
-        ? await query.range(page * _pageSize, page * _pageSize + _pageSize - 1)
-        : await query.limit(500);
-
-    final ids = List<Map<String, dynamic>>.from(
-      r,
-    ).map((x) => x['id'] as String).toList();
-
-    final p = <String, int>{};
-    if (ids.isNotEmpty) {
-      final l = await c
-          .from('loyalty_accounts')
-          .select('customer_id,points')
-          .inFilter('customer_id', ids);
-
-      for (final x in l) {
-        p[x['customer_id']] = ((x['points'] as num?)?.toInt() ?? 0);
-      }
-    }
-
-    final camp = await c
-        .from('campaigns')
-        .select()
-        .eq('organization_id', o)
-        .order('created_at', ascending: false)
-        .limit(20);
-
     if (mounted) {
       setState(() {
-        customers = List<Map<String, dynamic>>.from(r);
-        hasMore = segment == 'all' && customers.length == _pageSize;
-        points = p;
-        campaigns = List<Map<String, dynamic>>.from(camp);
-        loading = false;
+        loading = true;
+        error = null;
       });
+    }
+    try {
+      final o = await ref.read(activeOrganizationProvider.future);
+      organizationId = o;
+      if (o == null) return;
+      currency = await ref.read(activeCurrencyProvider.future);
+
+      final c = Supabase.instance.client;
+      // Only the "all" segment is server-paginated; the other segments filter
+      // client-side over a capped batch, so paginating them would make counts
+      // (e.g. "3 customers" for a VIP page) misleading.
+      var query = c
+          .from('customers')
+          .select()
+          .eq('organization_id', o)
+          .isFilter('deleted_at', null)
+          .order('name');
+      final r = segment == 'all'
+          ? await query.range(page * _pageSize, page * _pageSize + _pageSize - 1)
+          : await query.limit(500);
+
+      final ids = List<Map<String, dynamic>>.from(
+        r,
+      ).map((x) => x['id'] as String).toList();
+
+      final p = <String, int>{};
+      if (ids.isNotEmpty) {
+        final l = await c
+            .from('loyalty_accounts')
+            .select('customer_id,points')
+            .inFilter('customer_id', ids);
+
+        for (final x in l) {
+          p[x['customer_id']] = ((x['points'] as num?)?.toInt() ?? 0);
+        }
+      }
+
+      final camp = await c
+          .from('campaigns')
+          .select()
+          .eq('organization_id', o)
+          .order('created_at', ascending: false)
+          .limit(20);
+
+      if (mounted) {
+        setState(() {
+          customers = List<Map<String, dynamic>>.from(r);
+          hasMore = segment == 'all' && customers.length == _pageSize;
+          points = p;
+          campaigns = List<Map<String, dynamic>>.from(camp);
+          loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          error = e;
+          loading = false;
+        });
+      }
     }
   }
 
@@ -136,13 +158,16 @@ class _CrmPageState extends ConsumerState<CrmPage> {
         return b != null && DateTime.parse(b).month == month;
       }).toList();
     }
-    return customers.where((x) => x['last_visit_at'] == null).toList();
+    if (segment == 'first') {
+      return customers.where((x) => x['last_visit_at'] == null).toList();
+    }
+    return customers;
   }
 
   Future<void> addCustomer() async {
     final n = TextEditingController();
-    final e = TextEditingController();
     final p = TextEditingController();
+    final e = TextEditingController();
 
     final ok = await showDialog<bool>(
       context: context,
@@ -156,12 +181,12 @@ class _CrmPageState extends ConsumerState<CrmPage> {
               decoration: const InputDecoration(labelText: 'Name'),
             ),
             TextField(
-              controller: e,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
               controller: p,
               decoration: const InputDecoration(labelText: 'Phone'),
+            ),
+            TextField(
+              controller: e,
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
           ],
         ),
@@ -181,14 +206,41 @@ class _CrmPageState extends ConsumerState<CrmPage> {
     if (ok != true) return;
 
     final o = await ref.read(activeOrganizationProvider.future);
-    await Supabase.instance.client.from('customers').insert({
+    if (o == null) return;
+
+    // Local-first write, matching customers_page.dart: queue through
+    // SyncService so customer creation is offline-safe here too, instead of
+    // writing straight to Supabase.
+    final id = const Uuid().v4();
+    final data = {
+      'id': id,
       'organization_id': o,
       'name': n.text.trim(),
-      'email': e.text.trim().isEmpty ? null : e.text.trim(),
       'phone': p.text.trim().isEmpty ? null : p.text.trim(),
-    });
-
+      'email': e.text.trim().isEmpty ? null : e.text.trim(),
+    };
+    final sync = ref.read(syncServiceProvider);
+    await sync.enqueue(
+      SyncOperation(
+        operationId: id,
+        entity: 'customers',
+        entityId: id,
+        operation: 'create_customer',
+        payload: data,
+      ),
+    );
+    await sync.drain();
     await load();
+    if (mounted && !customers.any((r) => r['id'] == id)) {
+      // Still pending (offline, or the immediate drain failed) — show it
+      // optimistically until SyncService confirms it synced.
+      setState(
+        () => customers = [
+          {...data, 'no_show_count': 0, 'total_spent_minor': 0, '_pending': true},
+          ...customers,
+        ],
+      );
+    }
   }
 
   Future<void> campaign() async {
@@ -336,6 +388,8 @@ class _CrmPageState extends ConsumerState<CrmPage> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
           )
+        : error != null
+        ? AsyncErrorView(error: error!, onRetry: load)
         : RefreshIndicator(
             onRefresh: load,
             child: ListView(
