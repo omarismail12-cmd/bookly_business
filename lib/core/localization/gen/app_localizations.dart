@@ -1190,6 +1190,12 @@ abstract class AppLocalizations {
   /// **'Your Bookly business membership is suspended. Contact the business owner before creating or accessing another workspace.'**
   String get orgSuspendedMessage;
 
+  /// No description provided for @orgSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Business settings'**
+  String get orgSettingsTitle;
+
   /// No description provided for @authIncorrectCredentials.
   ///
   /// In en, this message translates to:

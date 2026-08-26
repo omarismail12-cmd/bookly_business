@@ -628,6 +628,9 @@ class AppLocalizationsAr extends AppLocalizations {
       'عضويتك في نشاط Bookly التجاري موقوفة. تواصل مع مالك النشاط قبل إنشاء مساحة عمل أخرى أو الوصول إليها.';
 
   @override
+  String get orgSettingsTitle => 'إعدادات النشاط التجاري';
+
+  @override
   String get authIncorrectCredentials =>
       'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
 

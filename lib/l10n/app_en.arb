@@ -220,6 +220,7 @@
   "orgSetupCreateDemoButton": "Create demo business + test data",
   "orgSetupWaitingForInvite": "Waiting to be added to an existing team instead? Ask the owner to assign you a role, then sign out above and sign back in.",
   "orgSuspendedMessage": "Your Bookly business membership is suspended. Contact the business owner before creating or accessing another workspace.",
+  "orgSettingsTitle": "Business settings",
 
   "authIncorrectCredentials": "Incorrect email or password.",
   "authLoginFailed": "Login failed: {error}",

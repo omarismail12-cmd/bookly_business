@@ -25,6 +25,7 @@ import '../../staff_portal/presentation/staff_today_page.dart';
 import '../../../shared/widgets/language_switcher_button.dart';
 import '../../../shared/widgets/sync_status_banner.dart';
 import '../../../shared/widgets/theme_switcher_button.dart';
+import 'organization_settings_page.dart';
 import 'organization_setup_page.dart';
 
 class BusinessShell extends ConsumerStatefulWidget {
@@ -119,6 +120,20 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
   }
 
   Future<void> logout() => Supabase.instance.client.auth.signOut();
+
+  Future<void> openSettings() async {
+    final m = membership;
+    if (m == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OrganizationSettingsPage(
+          organizationId: m.organizationId,
+          currentName: m.organizationName,
+          onSaved: load,
+        ),
+      ),
+    );
+  }
 
   Future<void> openMoreSheet(List<_NavItem> overflow, int firstIndex) async {
     final l10n = AppLocalizations.of(context);
@@ -276,6 +291,12 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(child: Text(role.name)),
               ),
+              if (role == AppRole.owner)
+                IconButton(
+                  tooltip: l10n.orgSettingsTitle,
+                  onPressed: openSettings,
+                  icon: const Icon(Icons.settings_outlined),
+                ),
               const ThemeSwitcherButton(),
               const LanguageSwitcherButton(),
               IconButton(onPressed: logout, icon: const Icon(Icons.logout)),

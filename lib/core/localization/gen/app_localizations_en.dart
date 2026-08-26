@@ -618,6 +618,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your Bookly business membership is suspended. Contact the business owner before creating or accessing another workspace.';
 
   @override
+  String get orgSettingsTitle => 'Business settings';
+
+  @override
   String get authIncorrectCredentials => 'Incorrect email or password.';
 
   @override
