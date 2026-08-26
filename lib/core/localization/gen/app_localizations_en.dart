@@ -689,6 +689,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signupTagline => 'Manage your business with Bookly.';
 
   @override
+  String get loginCustomerPrompt =>
+      'Are you a customer? Book an appointment here';
+
+  @override
+  String get authForgotPasswordLink => 'Forgot password?';
+
+  @override
+  String get authForgotPasswordTitle => 'Reset your password';
+
+  @override
+  String get authForgotPasswordInstructions =>
+      'Enter your email and we\'ll send you a link to reset your password.';
+
+  @override
+  String get authForgotPasswordSendButton => 'Send reset link';
+
+  @override
+  String get authForgotPasswordSent =>
+      'If an account exists for that email, we\'ve sent a password reset link. Check your inbox.';
+
+  @override
+  String authForgotPasswordFailed(String error) {
+    return 'Could not send reset link: $error';
+  }
+
+  @override
+  String get authBackToLogin => 'Back to sign in';
+
+  @override
+  String get authResetPasswordTitle => 'Set a new password';
+
+  @override
+  String get authResetPasswordNewPasswordLabel => 'New password';
+
+  @override
+  String get authResetPasswordButton => 'Update password';
+
+  @override
+  String get authResetPasswordSuccess => 'Password updated. Please sign in.';
+
+  @override
+  String authResetPasswordFailed(String error) {
+    return 'Could not update password: $error';
+  }
+
+  @override
+  String get authResetPasswordInvalidSession =>
+      'This password reset link is invalid or has expired. Request a new one.';
+
+  @override
+  String get authResetPasswordCancelSignOut => 'Cancel and sign out';
+
+  @override
   String myApptStatusLine(String status) {
     return 'Status: $status';
   }

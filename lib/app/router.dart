@@ -1,14 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization/gen/app_localizations.dart';
+import '../features/auth/presentation/forgot_password_page.dart';
 import '../features/auth/presentation/login_page.dart';
+import '../features/auth/presentation/reset_password_page.dart';
 import '../features/auth/presentation/signup_page.dart';
 import '../features/customer_portal/presentation/customer_login_page.dart';
 import '../features/customer_portal/presentation/customer_shell.dart';
 import '../features/customer_portal/presentation/customer_signup_page.dart';
 import '../features/organisations/presentation/business_shell.dart';
 import '../features/appointments/presentation/booking_page.dart';
+
+/// Set by [GoRouterRefreshStream] when Supabase reports
+/// AuthChangeEvent.passwordRecovery (the user followed a password-reset
+/// email link) — the redirect callback below steers to /reset-password
+/// regardless of where that link actually landed. Cleared by
+/// ResetPasswordPage once the flow is done (success or cancelled).
+bool passwordRecoveryPending = false;
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -22,11 +33,20 @@ final appRouter = GoRouter(
     final customerAuth = loc == '/customer/login' || loc == '/customer/signup';
     final customerRoute = loc.startsWith('/customer');
     final publicBooking = loc.startsWith('/book/');
+    final passwordAuthFlow = loc == '/forgot-password' || loc == '/reset-password';
+
+    if (passwordRecoveryPending && loc != '/reset-password') {
+      return '/reset-password';
+    }
     if (!loggedIn) {
+      if (loc == '/reset-password') return null;
       if (customerRoute && !customerAuth) return '/customer/login';
-      if (!businessAuth && !customerAuth && !publicBooking) return '/login';
+      if (!businessAuth && !customerAuth && !publicBooking && !passwordAuthFlow) {
+        return '/login';
+      }
       return null;
     }
+    if (passwordAuthFlow) return null;
     if (businessAuth) return '/home';
     if (customerAuth) return '/customer';
     return null;
@@ -34,6 +54,14 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
     GoRoute(path: '/signup', builder: (_, _) => const SignupPage()),
+    GoRoute(
+      path: '/forgot-password',
+      builder: (_, _) => const ForgotPasswordPage(),
+    ),
+    GoRoute(
+      path: '/reset-password',
+      builder: (_, _) => const ResetPasswordPage(),
+    ),
     GoRoute(path: '/home', builder: (_, _) => const BusinessShell()),
     GoRoute(
       path: '/customer/login',
@@ -77,10 +105,15 @@ final appRouter = GoRouter(
 );
 
 class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    _sub = stream.asBroadcastStream().listen((_) => notifyListeners());
+  GoRouterRefreshStream(Stream<AuthState> stream) {
+    _sub = stream.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        passwordRecoveryPending = true;
+      }
+      notifyListeners();
+    });
   }
-  late final dynamic _sub;
+  late final StreamSubscription<AuthState> _sub;
   @override
   void dispose() {
     _sub.cancel();

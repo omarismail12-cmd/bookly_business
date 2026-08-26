@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Base shimmering placeholder box. A plain [AnimationController]-driven
@@ -75,13 +77,22 @@ class SkeletonCard extends StatelessWidget {
     this.height = 72,
   });
 
+  // The three stacked children below (title box + spacer + subtitle box)
+  // need 36px regardless of [height] — clamping to at least that keeps
+  // this from ever overflowing its own SizedBox if a caller passes a
+  // height shorter than that (as staff_schedule_page.dart's itemHeight: 64
+  // did: 64 - 32 padding = 32px available, 4px short of the 36px needed).
+  static const _minContentHeight = 36.0;
+  static const _verticalPadding = 32.0;
+
   @override
   Widget build(BuildContext context) {
+    final contentHeight = math.max(height - _verticalPadding, _minContentHeight);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
-          height: height - 32,
+          height: contentHeight,
           child: Row(
             children: [
               if (leadingCircle) ...[

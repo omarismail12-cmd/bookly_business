@@ -700,6 +700,59 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signupTagline => 'أدر نشاطك التجاري باستخدام بوكلي.';
 
   @override
+  String get loginCustomerPrompt => 'هل أنت عميل؟ احجز موعدك من هنا';
+
+  @override
+  String get authForgotPasswordLink => 'نسيت كلمة المرور؟';
+
+  @override
+  String get authForgotPasswordTitle => 'إعادة تعيين كلمة المرور';
+
+  @override
+  String get authForgotPasswordInstructions =>
+      'أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.';
+
+  @override
+  String get authForgotPasswordSendButton => 'إرسال رابط إعادة التعيين';
+
+  @override
+  String get authForgotPasswordSent =>
+      'إذا كان هناك حساب مرتبط بهذا البريد الإلكتروني، فقد أرسلنا رابط إعادة تعيين كلمة المرور. تحقق من بريدك الوارد.';
+
+  @override
+  String authForgotPasswordFailed(String error) {
+    return 'تعذر إرسال رابط إعادة التعيين: $error';
+  }
+
+  @override
+  String get authBackToLogin => 'العودة لتسجيل الدخول';
+
+  @override
+  String get authResetPasswordTitle => 'تعيين كلمة مرور جديدة';
+
+  @override
+  String get authResetPasswordNewPasswordLabel => 'كلمة المرور الجديدة';
+
+  @override
+  String get authResetPasswordButton => 'تحديث كلمة المرور';
+
+  @override
+  String get authResetPasswordSuccess =>
+      'تم تحديث كلمة المرور. يرجى تسجيل الدخول.';
+
+  @override
+  String authResetPasswordFailed(String error) {
+    return 'تعذر تحديث كلمة المرور: $error';
+  }
+
+  @override
+  String get authResetPasswordInvalidSession =>
+      'رابط إعادة تعيين كلمة المرور هذا غير صالح أو منتهي الصلاحية. اطلب رابطًا جديدًا.';
+
+  @override
+  String get authResetPasswordCancelSignOut => 'إلغاء وتسجيل الخروج';
+
+  @override
   String myApptStatusLine(String status) {
     return 'الحالة: $status';
   }

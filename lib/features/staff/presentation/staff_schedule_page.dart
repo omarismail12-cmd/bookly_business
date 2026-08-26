@@ -307,7 +307,7 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
             )
           : null,
       body: loading
-          ? const SkeletonList(itemCount: 7, itemHeight: 64)
+          ? const SkeletonList(itemCount: 7, itemHeight: 68)
           : error != null
           ? AsyncErrorView(error: error!, onRetry: load)
           : TabBarView(

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../shared/validators/validators.dart';
 import '../../auth/data/auth_service.dart';
+import '../../auth/presentation/forgot_password_page.dart';
 import 'customer_signup_page.dart';
 
 /// Customer-facing login, kept deliberately separate from the business
@@ -127,7 +128,22 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton(
+                      onPressed: _loading
+                          ? null
+                          : () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordPage(),
+                              ),
+                            ),
+                      child: Text(l10n.authForgotPasswordLink),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   SizedBox(
                     height: 52,
                     child: ElevatedButton(

@@ -1310,6 +1310,96 @@ abstract class AppLocalizations {
   /// **'Manage your business with Bookly.'**
   String get signupTagline;
 
+  /// No description provided for @loginCustomerPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you a customer? Book an appointment here'**
+  String get loginCustomerPrompt;
+
+  /// No description provided for @authForgotPasswordLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get authForgotPasswordLink;
+
+  /// No description provided for @authForgotPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get authForgotPasswordTitle;
+
+  /// No description provided for @authForgotPasswordInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email and we\'ll send you a link to reset your password.'**
+  String get authForgotPasswordInstructions;
+
+  /// No description provided for @authForgotPasswordSendButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send reset link'**
+  String get authForgotPasswordSendButton;
+
+  /// No description provided for @authForgotPasswordSent.
+  ///
+  /// In en, this message translates to:
+  /// **'If an account exists for that email, we\'ve sent a password reset link. Check your inbox.'**
+  String get authForgotPasswordSent;
+
+  /// No description provided for @authForgotPasswordFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send reset link: {error}'**
+  String authForgotPasswordFailed(String error);
+
+  /// No description provided for @authBackToLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sign in'**
+  String get authBackToLogin;
+
+  /// No description provided for @authResetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a new password'**
+  String get authResetPasswordTitle;
+
+  /// No description provided for @authResetPasswordNewPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get authResetPasswordNewPasswordLabel;
+
+  /// No description provided for @authResetPasswordButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Update password'**
+  String get authResetPasswordButton;
+
+  /// No description provided for @authResetPasswordSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Password updated. Please sign in.'**
+  String get authResetPasswordSuccess;
+
+  /// No description provided for @authResetPasswordFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update password: {error}'**
+  String authResetPasswordFailed(String error);
+
+  /// No description provided for @authResetPasswordInvalidSession.
+  ///
+  /// In en, this message translates to:
+  /// **'This password reset link is invalid or has expired. Request a new one.'**
+  String get authResetPasswordInvalidSession;
+
+  /// No description provided for @authResetPasswordCancelSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel and sign out'**
+  String get authResetPasswordCancelSignOut;
+
   /// No description provided for @myApptStatusLine.
   ///
   /// In en, this message translates to:

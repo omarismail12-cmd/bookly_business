@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../../shared/validators/validators.dart';
 import '../data/auth_service.dart';
+import 'forgot_password_page.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -175,7 +177,24 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
+
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton(
+                      onPressed: _loading
+                          ? null
+                          : () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordPage(),
+                              ),
+                            ),
+                      child: Text(l10n.authForgotPasswordLink),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
 
                   SizedBox(
                     height: 52,
@@ -205,6 +224,15 @@ class _LoginPageState extends State<LoginPage> {
                             );
                           },
                     child: Text(l10n.loginNoAccount),
+                  ),
+
+                  const Divider(height: 32),
+
+                  TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () => context.go('/customer/login'),
+                    child: Text(l10n.loginCustomerPrompt),
                   ),
                 ],
               ),
