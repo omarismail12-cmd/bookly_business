@@ -221,6 +221,11 @@
   "orgSetupWaitingForInvite": "Waiting to be added to an existing team instead? Ask the owner to assign you a role, then sign out above and sign back in.",
   "orgSuspendedMessage": "Your Bookly business membership is suspended. Contact the business owner before creating or accessing another workspace.",
   "orgSettingsTitle": "Business settings",
+  "orgSettingsBusinessCodeLabel": "Business code",
+  "orgSettingsBusinessCodeHelp": "Customers enter this on the \"Book with a business\" screen to find you.",
+  "orgSettingsBookingLinkLabel": "Direct booking link",
+  "orgSettingsCopied": "Copied to clipboard.",
+  "commonCopy": "Copy",
 
   "authIncorrectCredentials": "Incorrect email or password.",
   "authLoginFailed": "Login failed: {error}",

@@ -1196,6 +1196,36 @@ abstract class AppLocalizations {
   /// **'Business settings'**
   String get orgSettingsTitle;
 
+  /// No description provided for @orgSettingsBusinessCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Business code'**
+  String get orgSettingsBusinessCodeLabel;
+
+  /// No description provided for @orgSettingsBusinessCodeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Customers enter this on the \"Book with a business\" screen to find you.'**
+  String get orgSettingsBusinessCodeHelp;
+
+  /// No description provided for @orgSettingsBookingLinkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct booking link'**
+  String get orgSettingsBookingLinkLabel;
+
+  /// No description provided for @orgSettingsCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard.'**
+  String get orgSettingsCopied;
+
+  /// No description provided for @commonCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get commonCopy;
+
   /// No description provided for @authIncorrectCredentials.
   ///
   /// In en, this message translates to:

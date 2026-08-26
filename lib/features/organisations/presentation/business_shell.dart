@@ -129,6 +129,7 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
         builder: (_) => OrganizationSettingsPage(
           organizationId: m.organizationId,
           currentName: m.organizationName,
+          slug: m.slug,
           onSaved: load,
         ),
       ),

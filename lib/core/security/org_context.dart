@@ -4,12 +4,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class OrganizationMembership {
   final String organizationId;
   final String organizationName;
+  final String slug;
   final String timezone;
   final String currency;
   final String role;
   const OrganizationMembership({
     required this.organizationId,
     required this.organizationName,
+    required this.slug,
     required this.timezone,
     required this.currency,
     required this.role,
@@ -26,7 +28,7 @@ Future<OrganizationMembership?> fetchActiveMembership() async {
   final rows = await Supabase.instance.client
       .from('organization_members')
       .select(
-        'organization_id,role,organizations(id,name,timezone,currency,status)',
+        'organization_id,role,organizations(id,name,slug,timezone,currency,status)',
       )
       .eq('user_id', uid)
       .eq('status', 'active')
@@ -38,6 +40,7 @@ Future<OrganizationMembership?> fetchActiveMembership() async {
   return OrganizationMembership(
     organizationId: row['organization_id'] as String,
     organizationName: org['name']?.toString() ?? 'Bookly Business',
+    slug: org['slug']?.toString() ?? '',
     timezone: org['timezone']?.toString() ?? 'UTC',
     currency: org['currency']?.toString() ?? 'USD',
     role: row['role']?.toString() ?? 'staff',

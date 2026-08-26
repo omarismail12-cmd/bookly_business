@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 
-/// Owner-only screen to rename the business. Same direct-Supabase-call
-/// pattern as OrganizationSetupPage. The write is already permitted by
+/// Owner-only screen to rename the business, and to look up the slug used
+/// as the customer-facing "business code" (find_business_page.dart) and
+/// public booking link (/book/:slug). Same direct-Supabase-call pattern as
+/// OrganizationSetupPage. The rename write is already permitted by
 /// organizations_update (0005_rls.sql: has_org_role(id, ['owner'])) — no
 /// migration needed, this just adds the missing UI for it.
 class OrganizationSettingsPage extends StatefulWidget {
   final String organizationId;
   final String currentName;
+  final String slug;
   final Future<void> Function() onSaved;
 
   const OrganizationSettingsPage({
     super.key,
     required this.organizationId,
     required this.currentName,
+    required this.slug,
     required this.onSaved,
   });
 
@@ -65,9 +70,19 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
     }
   }
 
+  Future<void> _copy(String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).orgSettingsCopied)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final bookingLink = '${Uri.base.origin}/book/${widget.slug}';
     return Scaffold(
       appBar: AppBar(title: Text(l10n.orgSettingsTitle)),
       body: Center(
@@ -101,11 +116,90 @@ class _OrganizationSettingsPageState extends State<OrganizationSettingsPage> {
                       child: Text(l10n.commonSave),
                     ),
                   ),
+                  const Divider(height: 40),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      l10n.orgSettingsBusinessCodeLabel,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      l10n.orgSettingsBusinessCodeHelp,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _CopyableField(
+                    value: widget.slug,
+                    monospace: true,
+                    onCopy: () => _copy(widget.slug),
+                    copyTooltip: l10n.commonCopy,
+                  ),
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      l10n.orgSettingsBookingLinkLabel,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _CopyableField(
+                    value: bookingLink,
+                    monospace: false,
+                    onCopy: () => _copy(bookingLink),
+                    copyTooltip: l10n.commonCopy,
+                  ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CopyableField extends StatelessWidget {
+  final String value;
+  final bool monospace;
+  final VoidCallback onCopy;
+  final String copyTooltip;
+
+  const _CopyableField({
+    required this.value,
+    required this.monospace,
+    required this.onCopy,
+    required this.copyTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: monospace ? const TextStyle(fontFamily: 'monospace') : null,
+            ),
+          ),
+          IconButton(
+            tooltip: copyTooltip,
+            onPressed: onCopy,
+            icon: const Icon(Icons.copy_outlined, size: 18),
+          ),
+        ],
       ),
     );
   }

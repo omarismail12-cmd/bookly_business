@@ -621,6 +621,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orgSettingsTitle => 'Business settings';
 
   @override
+  String get orgSettingsBusinessCodeLabel => 'Business code';
+
+  @override
+  String get orgSettingsBusinessCodeHelp =>
+      'Customers enter this on the \"Book with a business\" screen to find you.';
+
+  @override
+  String get orgSettingsBookingLinkLabel => 'Direct booking link';
+
+  @override
+  String get orgSettingsCopied => 'Copied to clipboard.';
+
+  @override
+  String get commonCopy => 'Copy';
+
+  @override
   String get authIncorrectCredentials => 'Incorrect email or password.';
 
   @override

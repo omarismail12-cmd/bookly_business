@@ -631,6 +631,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get orgSettingsTitle => 'إعدادات النشاط التجاري';
 
   @override
+  String get orgSettingsBusinessCodeLabel => 'رمز النشاط التجاري';
+
+  @override
+  String get orgSettingsBusinessCodeHelp =>
+      'يُدخل العملاء هذا الرمز في شاشة \"احجز مع نشاط تجاري\" للعثور عليك.';
+
+  @override
+  String get orgSettingsBookingLinkLabel => 'رابط الحجز المباشر';
+
+  @override
+  String get orgSettingsCopied => 'تم النسخ إلى الحافظة.';
+
+  @override
+  String get commonCopy => 'نسخ';
+
+  @override
   String get authIncorrectCredentials =>
       'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
 

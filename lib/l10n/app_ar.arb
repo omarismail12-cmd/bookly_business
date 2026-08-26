@@ -203,6 +203,11 @@
   "orgSetupWaitingForInvite": "هل تنتظر الانضمام إلى فريق حالي بدلًا من ذلك؟ اطلب من المالك تعيين دور لك، ثم سجّل الخروج أعلاه وسجّل الدخول مرة أخرى.",
   "orgSuspendedMessage": "عضويتك في نشاط Bookly التجاري موقوفة. تواصل مع مالك النشاط قبل إنشاء مساحة عمل أخرى أو الوصول إليها.",
   "orgSettingsTitle": "إعدادات النشاط التجاري",
+  "orgSettingsBusinessCodeLabel": "رمز النشاط التجاري",
+  "orgSettingsBusinessCodeHelp": "يُدخل العملاء هذا الرمز في شاشة \"احجز مع نشاط تجاري\" للعثور عليك.",
+  "orgSettingsBookingLinkLabel": "رابط الحجز المباشر",
+  "orgSettingsCopied": "تم النسخ إلى الحافظة.",
+  "commonCopy": "نسخ",
 
   "authIncorrectCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
   "authLoginFailed": "فشل تسجيل الدخول: {error}",
