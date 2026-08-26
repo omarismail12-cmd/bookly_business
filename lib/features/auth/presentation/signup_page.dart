@@ -45,6 +45,7 @@ class _SignupPageState extends State<SignupPage> {
       _loading = true;
     });
 
+    final l10n = AppLocalizations.of(context);
     try {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
@@ -60,7 +61,7 @@ class _SignupPageState extends State<SignupPage> {
       final user = response.user;
 
       if (user == null) {
-        throw Exception('Supabase did not return a user.');
+        throw Exception(l10n.authNoUserReturned);
       }
 
       /*
@@ -70,24 +71,18 @@ class _SignupPageState extends State<SignupPage> {
        */
       if (response.session == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Account created. Check your email to confirm your account.',
-            ),
-          ),
+          SnackBar(content: Text(l10n.authAccountCreatedConfirmEmail)),
         );
 
         showDialog<void>(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('Check your email'),
-            content: Text(
-              'We created the account for $email. Supabase has sent the confirmation email. Confirm it before signing in.',
-            ),
+            title: Text(l10n.authCheckEmailTitle),
+            content: Text(l10n.authCheckEmailBody(email)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(l10n.commonOk),
               ),
             ],
           ),
@@ -98,7 +93,7 @@ class _SignupPageState extends State<SignupPage> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created successfully!')),
+        SnackBar(content: Text(l10n.authAccountCreatedSuccess)),
       );
 
       Navigator.pop(context);
@@ -109,11 +104,11 @@ class _SignupPageState extends State<SignupPage> {
 
       if (e.message.toLowerCase().contains('already registered') ||
           e.message.toLowerCase().contains('already exists')) {
-        message = 'This email is already registered. Please sign in instead.';
+        message = l10n.authEmailAlreadyRegistered;
       } else if (e.message.toLowerCase().contains('invalid email')) {
-        message = 'Please enter a valid email address.';
+        message = l10n.authEmailInvalidGeneric;
       } else if (e.message.toLowerCase().contains('password')) {
-        message = 'Password does not meet the requirements.';
+        message = l10n.authPasswordRequirementsNotMet;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -124,7 +119,7 @@ class _SignupPageState extends State<SignupPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Sign up failed: $e'),
+          content: Text(l10n.authSignupFailed('$e')),
           backgroundColor: Colors.red,
         ),
       );
@@ -156,16 +151,16 @@ class _SignupPageState extends State<SignupPage> {
 
                   const SizedBox(height: 24),
 
-                  const Text(
-                    'Create your Bookly account',
+                  Text(
+                    l10n.signupWelcomeTitle,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 8),
 
                   Text(
-                    'Manage your business with Bookly.',
+                    l10n.signupTagline,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey.shade600),
                   ),

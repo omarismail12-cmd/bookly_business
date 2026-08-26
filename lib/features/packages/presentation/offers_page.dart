@@ -44,15 +44,16 @@ class _OffersPageState extends ConsumerState<OffersPage>
         ),
         TabBar(
           controller: tabs,
-          tabs: const [
-            Tab(text: 'Packages'),
-            Tab(text: 'Memberships'),
-            Tab(text: 'Coupons'),
+          tabs: [
+            Tab(text: AppLocalizations.of(context).offersTabPackages),
+            Tab(text: AppLocalizations.of(context).offersTabMemberships),
+            Tab(text: AppLocalizations.of(context).offersTabCoupons),
           ],
         ),
-        const Expanded(
+        Expanded(
           child: TabBarView(
-            children: [_PackagesTab(), _MembershipsTab(), _CouponsTab()],
+            controller: tabs,
+            children: const [_PackagesTab(), _MembershipsTab(), _CouponsTab()],
           ),
         ),
       ],
@@ -96,6 +97,7 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
   }
 
   Future<void> edit({PackageOffer? existing}) async {
+    final l10n = AppLocalizations.of(context);
     final name = TextEditingController(text: existing?.name);
     final price = TextEditingController(
       text: '${existing?.priceMinor ?? 10000}',
@@ -113,18 +115,18 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(existing == null ? 'New package' : 'Edit package'),
+          title: Text(existing == null ? l10n.offersNewPackageTitle : l10n.offersEditPackageTitle),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: 'Name'),
+                  decoration: InputDecoration(labelText: l10n.commonName),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: serviceId,
-                  decoration: const InputDecoration(labelText: 'Service'),
+                  decoration: InputDecoration(labelText: l10n.offersServiceLabel),
                   items: services
                       .map(
                         (s) => DropdownMenuItem(
@@ -138,20 +140,20 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                 TextField(
                   controller: price,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Price (minor units)',
+                  decoration: InputDecoration(
+                    labelText: l10n.offersPriceMinorLabel,
                   ),
                 ),
                 TextField(
                   controller: uses,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Total uses'),
+                  decoration: InputDecoration(labelText: l10n.offersTotalUsesLabel),
                 ),
                 TextField(
                   controller: expires,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Expires after (days, optional)',
+                  decoration: InputDecoration(
+                    labelText: l10n.offersExpiresAfterLabel,
                   ),
                 ),
               ],
@@ -160,11 +162,11 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save'),
+              child: Text(l10n.commonSave),
             ),
           ],
         ),
@@ -195,9 +197,9 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not save package: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.offersSavePackageFailed('$e'))),
+        );
       }
     }
   }
@@ -211,69 +213,72 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update package: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).offersUpdatePackageFailed('$e'))),
         );
       }
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    floatingActionButton: FloatingActionButton(
-      onPressed: () => edit(),
-      child: const Icon(Icons.add),
-    ),
-    body: loading
-        ? const SkeletonList(itemCount: 5, leadingCircle: false)
-        : ListView(
-            padding: const EdgeInsets.all(16),
-            children: rows.isEmpty
-                ? [const Text('No packages yet.')]
-                : rows
-                      .map(
-                        (r) => Card(
-                          child: ListTile(
-                            title: Text(r.name),
-                            subtitle: Text(
-                              '${r.serviceName ?? 'Any service'} • '
-                              '${r.totalUses} uses'
-                              '${r.expiresDays != null ? ' • expires in ${r.expiresDays}d' : ''}'
-                              '${!r.active ? ' • inactive' : ''}',
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  formatMinor(
-                                    r.priceMinor,
-                                    currency: currency,
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => edit(),
+        child: const Icon(Icons.add),
+      ),
+      body: loading
+          ? const SkeletonList(itemCount: 5, leadingCircle: false)
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: rows.isEmpty
+                  ? [Text(l10n.offersNoPackagesYet)]
+                  : rows
+                        .map(
+                          (r) => Card(
+                            child: ListTile(
+                              title: Text(r.name),
+                              subtitle: Text(
+                                '${r.serviceName ?? l10n.offersAnyService} • '
+                                '${l10n.offersUsesCount(r.totalUses)}'
+                                '${r.expiresDays != null ? ' • ${l10n.offersExpiresInDays(r.expiresDays!)}' : ''}'
+                                '${!r.active ? ' • ${l10n.statusInactive}' : ''}',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    formatMinor(
+                                      r.priceMinor,
+                                      currency: currency,
+                                    ),
                                   ),
-                                ),
-                                PopupMenuButton<String>(
-                                  onSelected: (v) => v == 'edit'
-                                      ? edit(existing: r)
-                                      : toggleActive(r),
-                                  itemBuilder: (_) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('Edit'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'toggle',
-                                      child: Text(
-                                        r.active ? 'Deactivate' : 'Reactivate',
+                                  PopupMenuButton<String>(
+                                    onSelected: (v) => v == 'edit'
+                                        ? edit(existing: r)
+                                        : toggleActive(r),
+                                    itemBuilder: (_) => [
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Text(l10n.commonEdit),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                      PopupMenuItem(
+                                        value: 'toggle',
+                                        child: Text(
+                                          r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                      .toList(),
-          ),
-  );
+                        )
+                        .toList(),
+            ),
+    );
+  }
 }
 
 class _MembershipsTab extends ConsumerStatefulWidget {
@@ -309,6 +314,7 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
   }
 
   Future<void> edit({Membership? existing}) async {
+    final l10n = AppLocalizations.of(context);
     final name = TextEditingController(text: existing?.name);
     final price = TextEditingController(
       text: '${existing?.priceMinor ?? 5000}',
@@ -322,34 +328,34 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'New membership' : 'Edit membership'),
+        title: Text(existing == null ? l10n.offersNewMembershipTitle : l10n.offersEditMembershipTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: name,
-                decoration: const InputDecoration(labelText: 'Name'),
+                decoration: InputDecoration(labelText: l10n.commonName),
               ),
               TextField(
                 controller: price,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Price (minor units)',
+                decoration: InputDecoration(
+                  labelText: l10n.offersPriceMinorLabel,
                 ),
               ),
               TextField(
                 controller: discount,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Discount percent',
+                decoration: InputDecoration(
+                  labelText: l10n.offersDiscountPercentLabel,
                 ),
               ),
               TextField(
                 controller: duration,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Duration (days)',
+                decoration: InputDecoration(
+                  labelText: l10n.offersDurationDaysLabel,
                 ),
               ),
             ],
@@ -358,11 +364,11 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -393,7 +399,7 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save membership: $e')),
+          SnackBar(content: Text(l10n.offersSaveMembershipFailed('$e'))),
         );
       }
     }
@@ -408,67 +414,70 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update membership: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).offersUpdateMembershipFailed('$e'))),
         );
       }
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    floatingActionButton: FloatingActionButton(
-      onPressed: () => edit(),
-      child: const Icon(Icons.add),
-    ),
-    body: loading
-        ? const SkeletonList(itemCount: 5, leadingCircle: false)
-        : ListView(
-            padding: const EdgeInsets.all(16),
-            children: rows.isEmpty
-                ? [const Text('No memberships yet.')]
-                : rows
-                      .map(
-                        (r) => Card(
-                          child: ListTile(
-                            title: Text(r.name),
-                            subtitle: Text(
-                              '${r.discountPercent}% off • ${r.durationDays} days'
-                              '${!r.active ? ' • inactive' : ''}',
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  formatMinor(
-                                    r.priceMinor,
-                                    currency: currency,
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => edit(),
+        child: const Icon(Icons.add),
+      ),
+      body: loading
+          ? const SkeletonList(itemCount: 5, leadingCircle: false)
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: rows.isEmpty
+                  ? [Text(l10n.offersNoMembershipsYet)]
+                  : rows
+                        .map(
+                          (r) => Card(
+                            child: ListTile(
+                              title: Text(r.name),
+                              subtitle: Text(
+                                l10n.offersDiscountOffDuration('${r.discountPercent}', r.durationDays) +
+                                    (!r.active ? ' • ${l10n.statusInactive}' : ''),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    formatMinor(
+                                      r.priceMinor,
+                                      currency: currency,
+                                    ),
                                   ),
-                                ),
-                                PopupMenuButton<String>(
-                                  onSelected: (v) => v == 'edit'
-                                      ? edit(existing: r)
-                                      : toggleActive(r),
-                                  itemBuilder: (_) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('Edit'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'toggle',
-                                      child: Text(
-                                        r.active ? 'Deactivate' : 'Reactivate',
+                                  PopupMenuButton<String>(
+                                    onSelected: (v) => v == 'edit'
+                                        ? edit(existing: r)
+                                        : toggleActive(r),
+                                    itemBuilder: (_) => [
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Text(l10n.commonEdit),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                      PopupMenuItem(
+                                        value: 'toggle',
+                                        child: Text(
+                                          r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                      .toList(),
-          ),
-  );
+                        )
+                        .toList(),
+            ),
+    );
+  }
 }
 
 class _CouponsTab extends ConsumerStatefulWidget {
@@ -504,6 +513,7 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
   }
 
   Future<void> edit({Coupon? existing}) async {
+    final l10n = AppLocalizations.of(context);
     final code = TextEditingController(text: existing?.code);
     final percent = TextEditingController(
       text: existing?.discountPercent != null
@@ -516,7 +526,7 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'New coupon' : 'Edit coupon'),
+        title: Text(existing == null ? l10n.offersNewCouponTitle : l10n.offersEditCouponTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -524,20 +534,20 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
               TextField(
                 controller: code,
                 textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(labelText: 'Code'),
+                decoration: InputDecoration(labelText: l10n.offersCodeLabel),
               ),
               TextField(
                 controller: percent,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Discount percent',
+                decoration: InputDecoration(
+                  labelText: l10n.offersDiscountPercentLabel,
                 ),
               ),
               TextField(
                 controller: limit,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Usage limit (optional)',
+                decoration: InputDecoration(
+                  labelText: l10n.offersUsageLimitLabel,
                 ),
               ),
             ],
@@ -546,14 +556,14 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(
               context,
               code.text.trim().isNotEmpty,
             ),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -579,9 +589,9 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not save coupon: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.offersSaveCouponFailed('$e'))),
+        );
       }
     }
   }
@@ -594,69 +604,76 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not update coupon: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).offersUpdateCouponFailed('$e'))),
+        );
       }
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    floatingActionButton: FloatingActionButton(
-      onPressed: () => edit(),
-      child: const Icon(Icons.add),
-    ),
-    body: loading
-        ? const SkeletonList(itemCount: 5, leadingCircle: false)
-        : ListView(
-            padding: const EdgeInsets.all(16),
-            children: rows.isEmpty
-                ? [const Text('No coupons yet.')]
-                : rows
-                      .map(
-                        (r) => Card(
-                          child: ListTile(
-                            title: Text(r.code),
-                            subtitle: Text(
-                              '${r.usageCount}${r.usageLimit != null ? '/${r.usageLimit}' : ''} used'
-                              '${r.expiresAt != null ? ' • expires ${r.expiresAt!.toLocal().toString().substring(0, 10)}' : ''}'
-                              '${!r.active ? ' • inactive' : ''}',
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  r.discountPercent != null
-                                      ? '${r.discountPercent}%'
-                                      : formatMinor(
-                                          r.discountMinor ?? 0,
-                                          currency: currency,
-                                        ),
-                                ),
-                                PopupMenuButton<String>(
-                                  onSelected: (v) => v == 'edit'
-                                      ? edit(existing: r)
-                                      : toggleActive(r),
-                                  itemBuilder: (_) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('Edit'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'toggle',
-                                      child: Text(
-                                        r.active ? 'Deactivate' : 'Reactivate',
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => edit(),
+        child: const Icon(Icons.add),
+      ),
+      body: loading
+          ? const SkeletonList(itemCount: 5, leadingCircle: false)
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: rows.isEmpty
+                  ? [Text(l10n.offersNoCouponsYet)]
+                  : rows
+                        .map(
+                          (r) => Card(
+                            child: ListTile(
+                              title: Text(r.code),
+                              subtitle: Text(
+                                (r.usageLimit != null
+                                        ? l10n.offersUsedCountLimited(r.usageCount, r.usageLimit!)
+                                        : l10n.offersUsedCountUnlimited(r.usageCount)) +
+                                    (r.expiresAt != null
+                                        ? ' • ${l10n.customerDetailExpiresOn(r.expiresAt!.toLocal().toString().substring(0, 10))}'
+                                        : '') +
+                                    (!r.active ? ' • ${l10n.statusInactive}' : ''),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    r.discountPercent != null
+                                        ? '${r.discountPercent}%'
+                                        : formatMinor(
+                                            r.discountMinor ?? 0,
+                                            currency: currency,
+                                          ),
+                                  ),
+                                  PopupMenuButton<String>(
+                                    onSelected: (v) => v == 'edit'
+                                        ? edit(existing: r)
+                                        : toggleActive(r),
+                                    itemBuilder: (_) => [
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Text(l10n.commonEdit),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                      PopupMenuItem(
+                                        value: 'toggle',
+                                        child: Text(
+                                          r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                      .toList(),
-          ),
-  );
+                        )
+                        .toList(),
+            ),
+    );
+  }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/localization/gen/app_localizations.dart';
+
 class OrganizationSetupPage extends StatefulWidget {
   final Future<void> Function() onCreated;
 
@@ -45,16 +47,15 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
       loading = true;
       error = null;
     });
+    final l10n = AppLocalizations.of(context);
     try {
       if (name.text.trim().length < 2) {
-        throw Exception('Business name is required.');
+        throw Exception(l10n.orgSetupNameRequired);
       }
       if (!RegExp(
         r'^[a-z0-9-]{3,40}$',
       ).hasMatch(slug.text.trim().toLowerCase())) {
-        throw Exception(
-          'Slug must use 3-40 lowercase letters, numbers or hyphens.',
-        );
+        throw Exception(l10n.orgSetupSlugInvalid);
       }
       await Supabase.instance.client.rpc(
         'create_organization_for_current_user',
@@ -74,14 +75,15 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Set up your business'),
+        title: Text(l10n.orgSetupPageTitle),
         actions: [
           TextButton(
             onPressed: () => Supabase.instance.client.auth.signOut(),
-            child: const Text('Sign out'),
+            child: Text(l10n.commonSignOut),
           ),
         ],
       ),
@@ -94,26 +96,26 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Create your business',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  Text(
+                    l10n.orgSetupHeading,
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 20),
                   TextField(
                     controller: name,
-                    decoration: const InputDecoration(
-                      labelText: 'Business name',
+                    decoration: InputDecoration(
+                      labelText: l10n.orgSetupBusinessNameLabel,
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: slug,
-                    decoration: const InputDecoration(labelText: 'Slug'),
+                    decoration: InputDecoration(labelText: l10n.orgSetupSlugLabel),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: timezone,
-                    decoration: const InputDecoration(labelText: 'Timezone'),
+                    decoration: InputDecoration(labelText: l10n.orgSetupTimezoneLabel),
                   ),
                   if (error != null)
                     Text(error!, style: const TextStyle(color: Colors.red)),
@@ -122,7 +124,7 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: loading ? null : create,
-                      child: const Text('Create business'),
+                      child: Text(l10n.orgSetupCreateButton),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -130,14 +132,12 @@ class _OrganizationSetupPageState extends State<OrganizationSetupPage> {
                     width: double.infinity,
                     child: OutlinedButton(
                       onPressed: loading ? null : seedDemo,
-                      child: const Text('Create demo business + test data'),
+                      child: Text(l10n.orgSetupCreateDemoButton),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Waiting to be added to an existing team instead? Ask '
-                    'the owner to assign you a role, then sign out above '
-                    'and sign back in.',
+                    l10n.orgSetupWaitingForInvite,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),

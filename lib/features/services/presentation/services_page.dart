@@ -44,6 +44,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
   }
 
   Future<void> add() async {
+    final l10n = AppLocalizations.of(context);
     final nameController = TextEditingController();
     final durationController = TextEditingController(text: '30');
     final bufferController = TextEditingController(text: '0');
@@ -52,36 +53,36 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Add service'),
+        title: Text(l10n.servicesAddTitle),
         content: SingleChildScrollView(
           child: Column(
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
+                decoration: InputDecoration(labelText: l10n.commonName),
               ),
               TextField(
                 controller: durationController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Duration (min)'),
+                decoration: InputDecoration(labelText: l10n.servicesDurationLabel),
               ),
               TextField(
                 controller: bufferController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Buffer (min)'),
+                decoration: InputDecoration(labelText: l10n.servicesBufferLabel),
               ),
               TextField(
                 controller: priceController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Price minor units',
+                decoration: InputDecoration(
+                  labelText: l10n.servicesPriceLabel,
                 ),
               ),
               TextField(
                 controller: depositController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Deposit required (minor units, 0 = none)',
+                decoration: InputDecoration(
+                  labelText: l10n.servicesDepositLabel,
                 ),
               ),
             ],
@@ -90,11 +91,11 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -106,11 +107,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     if (durationMin == null || bufferMin == null || priceMinor == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Duration, buffer and price must be whole numbers.',
-            ),
-          ),
+          SnackBar(content: Text(l10n.servicesNumbersRequired)),
         );
       }
       return;
@@ -132,24 +129,25 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
   /// SyncService so it works offline; see
   /// ServicesRepository.updateDescription for the version-conflict check.
   Future<void> editDescription(Service row) async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: row.description ?? '');
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Edit description • ${row.name}'),
+        title: Text(l10n.servicesEditDescriptionTitle(row.name)),
         content: TextField(
           controller: controller,
           maxLines: 4,
-          decoration: const InputDecoration(labelText: 'Description'),
+          decoration: InputDecoration(labelText: l10n.servicesDescriptionLabel),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -169,19 +167,20 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
   }
 
   Future<void> delete(Service row) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete service?'),
-        content: Text('Remove "${row.name}"? This cannot be undone.'),
+        title: Text(l10n.servicesDeleteTitle),
+        content: Text(l10n.commonConfirmDelete(row.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l10n.commonDelete),
           ),
         ],
       ),
@@ -192,9 +191,9 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not delete service: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.servicesDeleteFailed('$e'))),
+        );
       }
     }
   }
@@ -232,12 +231,12 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                       children: [
                         Text(formatMinor(row.priceMinor, currency: currency)),
                         IconButton(
-                          tooltip: 'Edit description',
+                          tooltip: l10n.servicesEditDescriptionTooltip,
                           onPressed: () => editDescription(row),
                           icon: const Icon(Icons.edit_outlined),
                         ),
                         IconButton(
-                          tooltip: 'Delete',
+                          tooltip: l10n.commonDelete,
                           onPressed: () => delete(row),
                           icon: const Icon(Icons.delete_outline),
                         ),

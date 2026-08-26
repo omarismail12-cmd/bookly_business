@@ -7,6 +7,7 @@ import 'app/app.dart';
 import 'core/analytics/firebase_crash_reporting.dart';
 import 'core/config/app_config.dart';
 import 'core/localization/locale_provider.dart';
+import 'core/theme/theme_mode_provider.dart';
 
 Future<void> main() async {
   await runZonedGuarded(
@@ -27,11 +28,15 @@ Future<void> main() async {
       // previously-chosen language immediately, instead of flashing the
       // device locale first and then switching once this resolves.
       final storedLocale = await loadStoredLocaleOverride();
+      final storedThemeMode = await loadStoredThemeMode();
       runApp(
         ProviderScope(
           overrides: [
             localeOverrideProvider.overrideWith(
               () => LocaleOverride(storedLocale),
+            ),
+            themeModeProvider.overrideWith(
+              () => ThemeModeOverride(storedThemeMode),
             ),
           ],
           child: const BooklyApp(),

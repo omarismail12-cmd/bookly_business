@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/formatters/currency.dart';
@@ -56,13 +57,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       );
     }
     final d = data!;
+    final l10n = AppLocalizations.of(c);
     return RefreshIndicator(
       onRefresh: load,
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
           Text(
-            'Today • ${DateFormat.yMMMd().format(DateTime.now())}',
+            l10n.dashboardGreetingDate(DateFormat.yMMMd().format(DateTime.now())),
             style: Theme.of(c).textTheme.headlineSmall,
           ),
           const SizedBox(height: 20),
@@ -70,23 +72,21 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             spacing: 16,
             runSpacing: 16,
             children: [
-              _card('Appointments', '${d.appointments}', Icons.calendar_month),
-              _card('Completed', '${d.completed}', Icons.check_circle),
-              _card('No-shows', '${d.noShow}', Icons.warning),
+              _card(l10n.dashboardCardAppointments, '${d.appointments}', Icons.calendar_month),
+              _card(l10n.dashboardCardCompleted, '${d.completed}', Icons.check_circle),
+              _card(l10n.dashboardCardNoShows, '${d.noShow}', Icons.warning),
               _card(
-                'Revenue',
+                l10n.dashboardCardRevenue,
                 formatMinor(d.revenueMinor, currency: currency),
                 Icons.payments,
               ),
             ],
           ),
           const SizedBox(height: 24),
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                'Use Calendar for day/week operations, Queue for walk-ins, and CRM for loyalty, packages and campaigns.',
-              ),
+              padding: const EdgeInsets.all(20),
+              child: Text(l10n.dashboardHint),
             ),
           ),
         ],

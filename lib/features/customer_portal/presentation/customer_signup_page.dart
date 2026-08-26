@@ -37,6 +37,7 @@ class _CustomerSignupPageState extends State<CustomerSignupPage> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
+    final l10n = AppLocalizations.of(context);
     try {
       final response = await _auth.signUp(
         email: _email.text.trim(),
@@ -46,9 +47,7 @@ class _CustomerSignupPageState extends State<CustomerSignupPage> {
       if (!mounted) return;
       if (response.session == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created. Check your email to confirm it.'),
-          ),
+          SnackBar(content: Text(l10n.authAccountCreatedConfirmEmailShort)),
         );
         Navigator.pop(context);
         return;
@@ -59,7 +58,7 @@ class _CustomerSignupPageState extends State<CustomerSignupPage> {
       var message = e.message;
       if (e.message.toLowerCase().contains('already registered') ||
           e.message.toLowerCase().contains('already exists')) {
-        message = 'This email is already registered. Please sign in instead.';
+        message = l10n.authEmailAlreadyRegistered;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -67,7 +66,7 @@ class _CustomerSignupPageState extends State<CustomerSignupPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign up failed: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(l10n.authSignupFailed('$e')), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _loading = false);

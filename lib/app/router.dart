@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/localization/gen/app_localizations.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/auth/presentation/signup_page.dart';
 import '../features/customer_portal/presentation/customer_login_page.dart';
@@ -50,26 +51,29 @@ final appRouter = GoRouter(
     ),
     GoRoute(path: '/book', builder: (_, _) => const BookingPage()),
   ],
-  errorBuilder: (context, state) => Scaffold(
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.search_off, size: 48),
-            const SizedBox(height: 12),
-            const Text('This page could not be found.'),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () => context.go('/home'),
-              child: const Text('Go home'),
-            ),
-          ],
+  errorBuilder: (context, state) {
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.search_off, size: 48),
+              const SizedBox(height: 12),
+              Text(l10n.routerPageNotFound),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => context.go('/home'),
+                child: Text(l10n.routerGoHome),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  ),
+    );
+  },
 );
 
 class GoRouterRefreshStream extends ChangeNotifier {

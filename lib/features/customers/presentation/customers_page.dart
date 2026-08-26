@@ -85,38 +85,39 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
   }
 
   Future<void> add() async {
+    final l10n = AppLocalizations.of(context);
     final name = TextEditingController();
     final phone = TextEditingController();
     final email = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Add customer'),
+        title: Text(l10n.customersAddDialogTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: name,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(labelText: l10n.commonName),
             ),
             TextField(
               controller: phone,
-              decoration: const InputDecoration(labelText: 'Phone'),
+              decoration: InputDecoration(labelText: l10n.commonPhone),
             ),
             TextField(
               controller: email,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(labelText: l10n.loginEmail),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -242,12 +243,12 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
               onTap: row.pending ? null : () => openDetail(row),
               title: Text(row.name),
               subtitle: Text(
-                '${row.phone ?? ''} • no-shows ${row.noShowCount}',
+                '${row.phone ?? ''} • ${l10n.customersSubtitleNoShows(row.noShowCount)}',
               ),
               trailing: row.pending
-                  ? const Tooltip(
-                      message: 'Waiting to sync',
-                      child: Icon(Icons.sync, size: 18),
+                  ? Tooltip(
+                      message: l10n.customersWaitingToSync,
+                      child: const Icon(Icons.sync, size: 18),
                     )
                   : Text(
                       formatMinor(row.totalSpentMinor, currency: currency),
@@ -271,7 +272,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
                   child: Text(l10n.commonPrevious),
                 ),
                 const SizedBox(width: 16),
-                Text('Page ${page + 1}'),
+                Text(l10n.commonPage(page + 1)),
                 const SizedBox(width: 16),
                 TextButton(
                   onPressed: hasMore

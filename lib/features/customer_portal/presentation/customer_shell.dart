@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../shared/widgets/language_switcher_button.dart';
 import '../../../shared/widgets/sync_status_banner.dart';
+import '../../../shared/widgets/theme_switcher_button.dart';
 import 'customer_loyalty_page.dart';
 import 'customer_offers_page.dart';
 import 'find_business_page.dart';
@@ -52,6 +53,7 @@ class _CustomerShellState extends State<CustomerShell> {
       appBar: AppBar(
         title: Text(labels[index]),
         actions: [
+          const ThemeSwitcherButton(),
           const LanguageSwitcherButton(),
           IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
         ],

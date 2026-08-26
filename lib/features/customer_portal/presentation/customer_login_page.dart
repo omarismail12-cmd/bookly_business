@@ -38,6 +38,7 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
+    final l10n = AppLocalizations.of(context);
     try {
       await _auth.signIn(
         email: _email.text.trim(),
@@ -49,7 +50,7 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
       var message = e.message;
       if (e.message.toLowerCase().contains('invalid login') ||
           e.message.toLowerCase().contains('invalid credentials')) {
-        message = 'Incorrect email or password.';
+        message = l10n.authIncorrectCredentials;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -57,7 +58,7 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(l10n.authLoginFailed('$e')), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _loading = false);

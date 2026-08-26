@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/localization/gen/app_localizations.dart';
 import '../data/staff_schedule_repository.dart';
 
 /// Shared one-off "blocked time" (time off) creation dialog — used by the
@@ -17,16 +18,17 @@ Future<bool> showAddBlockedTimeDialog(
   TimeOfDay start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay end = const TimeOfDay(hour: 10, minute: 0);
   final reason = TextEditingController();
+  final l10n = AppLocalizations.of(context);
   final ok = await showDialog<bool>(
     context: context,
     builder: (_) => StatefulBuilder(
       builder: (context, setLocal) => AlertDialog(
-        title: const Text('Add blocked time'),
+        title: Text(l10n.blockedTimeAdd),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: Text('Date: ${DateFormat.yMMMd().format(date)}'),
+              title: Text(l10n.blockedTimeDateLabel(DateFormat.yMMMd().format(date))),
               onTap: () async {
                 final d = await showDatePicker(
                   context: context,
@@ -38,7 +40,7 @@ Future<bool> showAddBlockedTimeDialog(
               },
             ),
             ListTile(
-              title: Text('Start: ${start.format(context)}'),
+              title: Text(l10n.blockedTimeStartLabel(start.format(context))),
               onTap: () async {
                 final t = await showTimePicker(
                   context: context,
@@ -48,7 +50,7 @@ Future<bool> showAddBlockedTimeDialog(
               },
             ),
             ListTile(
-              title: Text('End: ${end.format(context)}'),
+              title: Text(l10n.blockedTimeEndLabel(end.format(context))),
               onTap: () async {
                 final t = await showTimePicker(
                   context: context,
@@ -59,8 +61,8 @@ Future<bool> showAddBlockedTimeDialog(
             ),
             TextField(
               controller: reason,
-              decoration: const InputDecoration(
-                labelText: 'Reason (optional)',
+              decoration: InputDecoration(
+                labelText: l10n.blockedTimeReasonLabel,
               ),
             ),
           ],
@@ -68,11 +70,11 @@ Future<bool> showAddBlockedTimeDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -96,7 +98,7 @@ Future<bool> showAddBlockedTimeDialog(
   if (!startsAt.isBefore(endsAt)) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Start time must be before end time.')),
+        SnackBar(content: Text(l10n.blockedTimeStartBeforeEnd)),
       );
     }
     return false;
@@ -112,7 +114,7 @@ Future<bool> showAddBlockedTimeDialog(
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add blocked time: $e')),
+        SnackBar(content: Text(l10n.blockedTimeAddFailed('$e'))),
       );
     }
     return false;

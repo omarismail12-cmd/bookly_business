@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_service.dart';
 
@@ -87,6 +88,7 @@ class _StaffAppointmentDetailPageState
     final id = customerId;
     if (id == null) return;
     setState(() => saving = true);
+    final l10n = AppLocalizations.of(context);
     try {
       final operationId = const Uuid().v4();
       final sync = ref.read(syncServiceProvider);
@@ -113,16 +115,16 @@ class _StaffAppointmentDetailPageState
       );
       if (!mounted) return;
       final message = conflicted
-          ? 'This customer was changed elsewhere — resolve the conflict from the sync banner.'
+          ? l10n.staffAppointmentConflictMessage
           : stillPending
-          ? "Offline — will sync when you're back online."
-          : 'Notes saved.';
+          ? l10n.staffAppointmentOfflinePending
+          : l10n.staffAppointmentNotesSaved;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not save: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.staffAppointmentSaveFailed('$e'))),
+        );
       }
     } finally {
       if (mounted) setState(() => saving = false);
@@ -131,6 +133,7 @@ class _StaffAppointmentDetailPageState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final a = widget.appointment;
     final c = customer ?? const {};
     final start = DateTime.parse(a['starts_at']).toLocal();
@@ -141,7 +144,9 @@ class _StaffAppointmentDetailPageState
         .whereType<String>()
         .join(', ');
     return Scaffold(
-      appBar: AppBar(title: Text(c['name']?.toString() ?? 'Appointment')),
+      appBar: AppBar(
+        title: Text(c['name']?.toString() ?? l10n.apptTitleFallback),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -170,30 +175,30 @@ class _StaffAppointmentDetailPageState
           ),
           const SizedBox(height: 24),
           Text(
-            'Private notes',
+            l10n.privateNotesLabel,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: notes,
             maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'Preferences, allergies, reminders…',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: l10n.privateNotesHint,
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            'Next recommendation',
+            l10n.nextRecommendationLabel,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: recommendation,
             maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'What to suggest at the next visit…',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: l10n.nextRecommendationHint,
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 20),
@@ -202,7 +207,7 @@ class _StaffAppointmentDetailPageState
             height: 52,
             child: FilledButton(
               onPressed: saving ? null : save,
-              child: const Text('Save'),
+              child: Text(l10n.commonSave),
             ),
           ),
         ],

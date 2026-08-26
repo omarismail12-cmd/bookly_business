@@ -68,18 +68,19 @@ class _QueuePageState extends ConsumerState<QueuePage> {
   }
 
   Future<void> addWalkIn() async {
+    final l10n = AppLocalizations.of(context);
     String? cId, sId, stId;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Add walk-in'),
+          title: Text(l10n.queueAddWalkInDialogTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
                 initialValue: cId,
-                decoration: const InputDecoration(labelText: 'Customer'),
+                decoration: InputDecoration(labelText: l10n.queueCustomerLabel),
                 items: customers
                     .map<DropdownMenuItem<String>>(
                       (x) => DropdownMenuItem<String>(
@@ -93,7 +94,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: sId,
-                decoration: const InputDecoration(labelText: 'Service'),
+                decoration: InputDecoration(labelText: l10n.queueServiceLabel),
                 items: services
                     .map<DropdownMenuItem<String>>(
                       (x) => DropdownMenuItem<String>(
@@ -107,13 +108,13 @@ class _QueuePageState extends ConsumerState<QueuePage> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
                 initialValue: stId,
-                decoration: const InputDecoration(
-                  labelText: 'Staff (optional)',
+                decoration: InputDecoration(
+                  labelText: l10n.queueStaffOptionalLabel,
                 ),
                 items: [
-                  const DropdownMenuItem<String?>(
+                  DropdownMenuItem<String?>(
                     value: null,
-                    child: Text('Any staff'),
+                    child: Text(l10n.queueAnyStaff),
                   ),
                   ...staff.map<DropdownMenuItem<String?>>(
                     (x) => DropdownMenuItem<String?>(
@@ -129,12 +130,12 @@ class _QueuePageState extends ConsumerState<QueuePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.pop(context, cId != null && sId != null),
-              child: const Text('Add'),
+              child: Text(l10n.commonAdd),
             ),
           ],
         ),
@@ -150,16 +151,16 @@ class _QueuePageState extends ConsumerState<QueuePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Walk-in added • ${id.toString().substring(0, 8)}'),
+            content: Text(l10n.queueWalkInAdded(id.toString().substring(0, 8))),
           ),
         );
       }
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not add walk-in: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.queueAddWalkInFailed('$e'))),
+        );
       }
     }
   }
@@ -200,7 +201,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                     ),
                   ),
                 ...rows.map((row) {
-                  final customer = row.customerName ?? 'Customer';
+                  final customer = row.customerName ?? l10n.commonCustomerFallback;
                   return Card(
                     child: ListTile(
                       leading: CircleAvatar(
@@ -212,19 +213,19 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                       ),
                       trailing: PopupMenuButton<String>(
                         onSelected: (s) => advance(row.id, s),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'called', child: Text('Call')),
+                        itemBuilder: (_) => [
+                          PopupMenuItem(value: 'called', child: Text(l10n.queueCall)),
                           PopupMenuItem(
                             value: 'in_service',
-                            child: Text('Start'),
+                            child: Text(l10n.queueStart),
                           ),
                           PopupMenuItem(
                             value: 'completed',
-                            child: Text('Complete'),
+                            child: Text(l10n.apptComplete),
                           ),
                           PopupMenuItem(
                             value: 'cancelled',
-                            child: Text('Cancel'),
+                            child: Text(l10n.commonCancel),
                           ),
                         ],
                       ),
@@ -247,7 +248,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                           child: Text(l10n.commonPrevious),
                         ),
                         const SizedBox(width: 16),
-                        Text('Page ${page + 1}'),
+                        Text(l10n.commonPage(page + 1)),
                         const SizedBox(width: 16),
                         TextButton(
                           onPressed: hasMore

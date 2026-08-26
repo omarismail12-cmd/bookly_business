@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/gen/app_localizations.dart';
 import '../../core/localization/locale_provider.dart';
 
 /// AppBar action that lets the user override the in-app language,
@@ -14,13 +15,14 @@ class LanguageSwitcherButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final current = ref.watch(localeOverrideProvider);
+    final l10n = AppLocalizations.of(context);
     return IconButton(
-      tooltip: 'Language',
+      tooltip: l10n.languageSwitcherTitle,
       icon: const Icon(Icons.language),
       onPressed: () => showDialog<void>(
         context: context,
         builder: (_) => SimpleDialog(
-          title: const Text('Language'),
+          title: Text(l10n.languageSwitcherTitle),
           children: [
             RadioGroup<Locale?>(
               groupValue: current,
@@ -28,18 +30,22 @@ class LanguageSwitcherButton extends ConsumerWidget {
                 ref.read(localeOverrideProvider.notifier).set(v);
                 Navigator.pop(context);
               },
-              child: const Column(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   RadioListTile<Locale?>(
-                    title: Text('System default'),
+                    title: Text(l10n.languageSystemDefault),
                     value: null,
                   ),
-                  RadioListTile<Locale?>(
+                  // Each language's own name is deliberately shown in its
+                  // own script regardless of the current UI language (the
+                  // same convention iOS/Android/WhatsApp use), so these two
+                  // are not run through AppLocalizations.
+                  const RadioListTile<Locale?>(
                     title: Text('English'),
                     value: Locale('en'),
                   ),
-                  RadioListTile<Locale?>(
+                  const RadioListTile<Locale?>(
                     title: Text('العربية'),
                     value: Locale('ar'),
                   ),

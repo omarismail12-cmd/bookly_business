@@ -66,12 +66,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   }
 
   Future<void> exportPdf() async {
+    final periodLabel = range == 'week'
+        ? AppLocalizations.of(context).reportsThisWeek
+        : AppLocalizations.of(context).reportsThisMonth;
     await Printing.layoutPdf(
       onLayout: (_) async => Uint8List.fromList(
         await _pdfService.createReport(
           data: {
             'businessName': businessName,
-            'period': range == 'week' ? 'This week' : 'This month',
+            'period': periodLabel,
             'occupancyPercent': d.occupancyPercent,
             'appointments': d.appointments,
             'completed': d.completed,
@@ -112,6 +115,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         ],
       );
     }
+    final l10n = AppLocalizations.of(c);
     final staffPerformance = d.staffPerformance;
     final customerMetrics = d.customerMetrics;
     final campaignMetrics = d.campaignMetrics;
@@ -123,18 +127,18 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           LayoutBuilder(
             builder: (context, constraints) {
               final title = Text(
-                AppLocalizations.of(c).pageTitleReports,
+                l10n.pageTitleReports,
                 style: Theme.of(c).textTheme.headlineSmall,
               );
               final exportButton = IconButton(
-                tooltip: 'Export PDF',
+                tooltip: l10n.reportsExportPdfTooltip,
                 onPressed: exportPdf,
                 icon: const Icon(Icons.picture_as_pdf_outlined),
               );
               final rangeSelector = SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'week', label: Text('This week')),
-                  ButtonSegment(value: 'month', label: Text('This month')),
+                segments: [
+                  ButtonSegment(value: 'week', label: Text(l10n.reportsThisWeek)),
+                  ButtonSegment(value: 'month', label: Text(l10n.reportsThisMonth)),
                 ],
                 selected: {range},
                 onSelectionChanged: (v) {
@@ -172,37 +176,37 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             },
           ),
           const SizedBox(height: 16),
-          Text('Occupancy & volume', style: Theme.of(c).textTheme.titleMedium),
+          Text(l10n.reportsOccupancyVolumeHeading, style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _row('Occupancy', '${d.occupancyPercent}%'),
-          _row('Appointments', d.appointments),
-          _row('Completed', d.completed),
-          _row('Cancelled', d.cancelled),
-          _row('No-shows', d.noShow),
+          _row(l10n.reportsOccupancy, '${d.occupancyPercent}%'),
+          _row(l10n.reportsAppointments, d.appointments),
+          _row(l10n.reportsCompleted, d.completed),
+          _row(l10n.reportsCancelled, d.cancelled),
+          _row(l10n.reportsNoShows, d.noShow),
           _row(
-            'Revenue',
+            l10n.reportsRevenue,
             formatMinor(d.revenueMinor, currency: currency),
           ),
           const SizedBox(height: 24),
-          Text('Customers', style: Theme.of(c).textTheme.titleMedium),
+          Text(l10n.reportsCustomersHeading, style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _row('New customers', d.customers),
-          _row('Repeat customers', customerMetrics.repeatCustomers),
+          _row(l10n.reportsNewCustomers, d.customers),
+          _row(l10n.reportsRepeatCustomers, customerMetrics.repeatCustomers),
           _row(
-            'Average spend',
+            l10n.reportsAverageSpend,
             formatMinor(customerMetrics.avgSpendMinor, currency: currency),
           ),
           const SizedBox(height: 24),
-          Text('Campaigns', style: Theme.of(c).textTheme.titleMedium),
+          Text(l10n.reportsCampaignsHeading, style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _row('Campaigns sent', campaignMetrics.campaignsSent),
-          _row('Recipients', campaignMetrics.recipients),
-          _row('Opened', campaignMetrics.opened),
-          _row('Booked', campaignMetrics.booked),
+          _row(l10n.reportsCampaignsSent, campaignMetrics.campaignsSent),
+          _row(l10n.reportsRecipients, campaignMetrics.recipients),
+          _row(l10n.reportsOpened, campaignMetrics.opened),
+          _row(l10n.reportsBooked, campaignMetrics.booked),
           const SizedBox(height: 24),
-          Text('Staff performance', style: Theme.of(c).textTheme.titleMedium),
+          Text(l10n.reportsStaffPerformanceHeading, style: Theme.of(c).textTheme.titleMedium),
           const SizedBox(height: 8),
-          if (staffPerformance.isEmpty) const Text('No staff yet.'),
+          if (staffPerformance.isEmpty) Text(l10n.reportsNoStaffYet),
           ...staffPerformance
               .take((staffPage + 1) * _staffPageSize)
               .map(
@@ -210,7 +214,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   child: ListTile(
                     title: Text(s.displayName),
                     subtitle: Text(
-                      '${s.completed} completed • ${s.noShow} no-shows',
+                      l10n.reportsStaffCompletedNoShows(s.completed, s.noShow),
                     ),
                     trailing: Text(
                       formatMinor(s.revenueMinor, currency: currency),
@@ -225,7 +229,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               child: Center(
                 child: TextButton(
                   onPressed: () => setState(() => staffPage++),
-                  child: const Text('Load more'),
+                  child: Text(l10n.reportsLoadMore),
                 ),
               ),
             ),

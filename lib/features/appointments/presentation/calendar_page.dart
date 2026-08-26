@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../data/appointments_repository.dart';
 
@@ -85,9 +87,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Status update failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).calendarStatusUpdateFailed('$e'))),
+        );
       }
     }
   }
@@ -101,9 +103,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Cancellation failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).calendarCancellationFailed('$e'))),
+        );
       }
     }
   }
@@ -130,9 +132,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Reschedule failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).calendarRescheduleFailed('$e'))),
+        );
       }
     }
   }
@@ -147,6 +149,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         padding: EdgeInsets.all(16),
       );
     }
+    final l10n = AppLocalizations.of(context);
     final from = week ? day.subtract(Duration(days: day.weekday - 1)) : day;
     return Column(
       children: [
@@ -164,7 +167,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               ),
               Text(
                 week
-                    ? 'Week of ${from.year}-${from.month}-${from.day}'
+                    ? l10n.calendarWeekOf('${from.year}-${from.month}-${from.day}')
                     : '${day.year}-${day.month}-${day.day}',
                 style: const TextStyle(
                   fontSize: 20,
@@ -177,13 +180,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 icon: const Icon(Icons.chevron_right),
               ),
               FilterChip(
-                label: const Text('Week view'),
+                label: Text(l10n.calendarWeekView),
                 selected: week,
                 onSelected: (v) => goto(newWeek: v),
               ),
               OutlinedButton(
                 onPressed: () => goto(newDay: DateTime.now()),
-                child: const Text('Today'),
+                child: Text(l10n.commonToday),
               ),
             ],
           ),
@@ -195,22 +198,22 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               padding: const EdgeInsets.all(16),
               children: [
                 if (rows.isEmpty)
-                  const Card(
+                  Card(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(32),
                       child: Center(
-                        child: Text('No appointments for this period.'),
+                        child: Text(l10n.calendarNoAppointments),
                       ),
                     ),
                   )
                 else
                   ...rows.map((row) {
-                      final customer =
-                          (row['customers'] as Map?)?['name'] ?? 'Customer';
-                      final staff =
-                          (row['staff'] as Map?)?['display_name'] ?? 'Staff';
+                      final customer = (row['customers'] as Map?)?['name'] ??
+                          l10n.commonCustomerFallback;
+                      final staff = (row['staff'] as Map?)?['display_name'] ??
+                          l10n.bookingStaff;
                       final start = DateTime.parse(row['starts_at']).toLocal();
-                      final statusLabel = row['status'] ?? '';
+                      final statusLabel = humanStatusLabel(l10n, (row['status'] ?? '') as String);
                       final depositDue =
                           ((row['deposit_required_minor'] as num?) ?? 0) -
                           ((row['deposit_paid_minor'] as num?) ?? 0);
@@ -219,7 +222,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           title: Text(customer),
                           subtitle: Text(
                             '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} • $staff • $statusLabel'
-                            '${depositDue > 0 ? ' • deposit due ${formatMinor(depositDue.toInt(), currency: currency)}' : ''}',
+                            '${depositDue > 0 ? ' • ${l10n.calendarDepositDue(formatMinor(depositDue.toInt(), currency: currency))}' : ''}',
                           ),
                           trailing: PopupMenuButton<String>(
                             onSelected: (v) {
@@ -231,30 +234,30 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                 setStatus(row['id'], v);
                               }
                             },
-                            itemBuilder: (_) => const [
+                            itemBuilder: (_) => [
                               PopupMenuItem(
                                 value: 'checked_in',
-                                child: Text('Check in'),
+                                child: Text(l10n.apptCheckIn),
                               ),
                               PopupMenuItem(
                                 value: 'in_service',
-                                child: Text('Start service'),
+                                child: Text(l10n.apptStartService),
                               ),
                               PopupMenuItem(
                                 value: 'completed',
-                                child: Text('Complete'),
+                                child: Text(l10n.apptComplete),
                               ),
                               PopupMenuItem(
                                 value: 'no_show',
-                                child: Text('No-show'),
+                                child: Text(l10n.apptNoShow),
                               ),
                               PopupMenuItem(
                                 value: 'cancelled',
-                                child: Text('Cancel'),
+                                child: Text(l10n.commonCancel),
                               ),
                               PopupMenuItem(
                                 value: 'reschedule',
-                                child: Text('Reschedule'),
+                                child: Text(l10n.apptReschedule),
                               ),
                             ],
                           ),
@@ -274,10 +277,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                   load();
                                 }
                               : null,
-                          child: const Text('Previous'),
+                          child: Text(l10n.commonPrevious),
                         ),
                         const SizedBox(width: 16),
-                        Text('Page ${page + 1}'),
+                        Text(l10n.commonPage(page + 1)),
                         const SizedBox(width: 16),
                         TextButton(
                           onPressed: hasMore
@@ -286,7 +289,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                   load();
                                 }
                               : null,
-                          child: const Text('Next'),
+                          child: Text(l10n.commonNext),
                         ),
                       ],
                     ),

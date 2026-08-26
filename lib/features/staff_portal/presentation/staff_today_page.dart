@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../staff/presentation/blocked_time_dialog.dart';
@@ -88,9 +89,13 @@ class _StaffTodayPageState extends ConsumerState<StaffTodayPage> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Status update failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).staffTodayStatusUpdateFailed('$e'),
+            ),
+          ),
+        );
       }
     }
   }
@@ -109,21 +114,21 @@ class _StaffTodayPageState extends ConsumerState<StaffTodayPage> {
     if (id == null) return;
     final added = await showAddBlockedTimeDialog(context, ref: ref, staffId: id);
     if (added && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Time off added.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).staffTimeOffAdded)),
+      );
     }
   }
 
-  ({String label, String next})? _primaryAction(String status) {
+  ({String label, String next})? _primaryAction(AppLocalizations l10n, String status) {
     switch (status) {
       case 'pending':
       case 'confirmed':
-        return (label: 'Check in', next: 'checked_in');
+        return (label: l10n.apptCheckIn, next: 'checked_in');
       case 'checked_in':
-        return (label: 'Start service', next: 'in_service');
+        return (label: l10n.apptStartService, next: 'in_service');
       case 'in_service':
-        return (label: 'Complete', next: 'completed');
+        return (label: l10n.apptComplete, next: 'completed');
       default:
         return null;
     }
@@ -139,7 +144,7 @@ class _StaffTodayPageState extends ConsumerState<StaffTodayPage> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Add blocked time',
+            tooltip: l10n.blockedTimeAdd,
             onPressed: staffId == null ? null : addOwnBlockedTime,
             icon: const Icon(Icons.event_busy_outlined),
           ),
@@ -150,10 +155,7 @@ class _StaffTodayPageState extends ConsumerState<StaffTodayPage> {
           : error != null
           ? AsyncErrorView(error: error!, onRetry: load)
           : staffId == null
-          ? const EmptyState(
-              message:
-                  'No staff profile is linked to your account yet. Ask your manager to assign you as staff.',
-            )
+          ? EmptyState(message: l10n.staffTodayNoProfile)
           : RefreshIndicator(
               onRefresh: load,
               child: rows.isEmpty
@@ -171,8 +173,8 @@ class _StaffTodayPageState extends ConsumerState<StaffTodayPage> {
                       separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, i) {
                         final row = rows[i];
-                        final customer =
-                            (row['customers'] as Map?)?['name'] ?? 'Customer';
+                        final customer = (row['customers'] as Map?)?['name'] ??
+                            l10n.commonCustomerFallback;
                         final services = List<Map<String, dynamic>>.from(
                           row['appointment_services'] ?? [],
                         )
@@ -183,7 +185,7 @@ class _StaffTodayPageState extends ConsumerState<StaffTodayPage> {
                           row['starts_at'],
                         ).toLocal();
                         final status = row['status'] as String;
-                        final action = _primaryAction(status);
+                        final action = _primaryAction(l10n, status);
                         return Card(
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
@@ -270,7 +272,7 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        status.replaceAll('_', ' '),
+        humanStatusLabel(AppLocalizations.of(context), status),
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w600,

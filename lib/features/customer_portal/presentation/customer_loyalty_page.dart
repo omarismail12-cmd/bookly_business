@@ -100,7 +100,9 @@ class _CustomerLoyaltyPageState extends State<CustomerLoyaltyPage> {
                     child: ListTile(
                       leading: const Icon(Icons.confirmation_number_outlined),
                       title: Text((x['packages'] as Map?)?['name'] ?? ''),
-                      subtitle: Text('${x['remaining_uses']} uses left'),
+                      subtitle: Text(
+                        l10n.loyaltyUsesLeft('${x['remaining_uses']}'),
+                      ),
                     ),
                   ),
                 ),
@@ -110,7 +112,9 @@ class _CustomerLoyaltyPageState extends State<CustomerLoyaltyPage> {
                       leading: const Icon(Icons.workspace_premium_outlined),
                       title: Text((x['memberships'] as Map?)?['name'] ?? ''),
                       subtitle: Text(
-                        'Until ${DateTime.parse(x['ends_at']).toLocal().toString().substring(0, 10)}',
+                        l10n.loyaltyUntilDate(
+                          DateTime.parse(x['ends_at']).toLocal().toString().substring(0, 10),
+                        ),
                       ),
                     ),
                   ),

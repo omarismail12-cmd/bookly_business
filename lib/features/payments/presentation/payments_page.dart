@@ -10,6 +10,7 @@ import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
 import '../../../../shared/formatters/currency.dart';
+import '../../../../shared/formatters/status_labels.dart';
 import '../../../../shared/widgets/skeleton.dart';
 import '../data/payments_repository.dart';
 import '../domain/payment.dart';
@@ -64,7 +65,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
   }
 
   Future<void> printReceipt(Payment row) async {
-    final customer = row.customerName ?? 'Customer';
+    final customer = row.customerName ?? AppLocalizations.of(context).commonCustomerFallback;
     final createdAt = row.createdAt.toLocal();
     await Printing.layoutPdf(
       onLayout: (_) async => Uint8List.fromList(
@@ -91,6 +92,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
       ref.read(paymentsRepositoryProvider).activeMembershipDiscount(customerId);
 
   Future<void> addPayment() async {
+    final l10n = AppLocalizations.of(context);
     String? appointment;
     String method = 'cash';
     String type = 'payment';
@@ -124,7 +126,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
           Future<void> save() async {
             final baseAmount = int.tryParse(amount.text.trim());
             if (appointment == null || baseAmount == null || baseAmount <= 0) {
-              setLocal(() => error = 'Choose an appointment and a valid amount.');
+              setLocal(() => error = l10n.paymentsChooseApptAndAmount);
               return;
             }
             setLocal(() {
@@ -162,7 +164,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
 
               finalAmount = finalAmount < 0 ? 0 : finalAmount;
               if (finalAmount <= 0) {
-                throw Exception('Discounted amount must be greater than zero.');
+                throw Exception(l10n.paymentsDiscountedAmountZero);
               }
 
               await repo.recordPayment(
@@ -182,19 +184,19 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
           }
 
           return AlertDialog(
-            title: const Text('Record payment'),
+            title: Text(l10n.paymentsRecordTitle),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
                     initialValue: appointment,
-                    decoration: const InputDecoration(
-                      labelText: 'Appointment',
+                    decoration: InputDecoration(
+                      labelText: l10n.paymentsAppointmentLabel,
                     ),
                     items: appointments.map((item) {
-                      final customer =
-                          (item['customers'] as Map?)?['name'] ?? 'Customer';
+                      final customer = (item['customers'] as Map?)?['name'] ??
+                          l10n.commonCustomerFallback;
                       return DropdownMenuItem<String>(
                         value: item['id'],
                         child: Text(
@@ -208,22 +210,22 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   TextField(
                     controller: amount,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount (minor units)',
+                    decoration: InputDecoration(
+                      labelText: l10n.paymentsAmountMinorLabel,
                     ),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: method,
-                    decoration: const InputDecoration(labelText: 'Method'),
-                    items: const [
-                      DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                      DropdownMenuItem(value: 'card', child: Text('Card')),
+                    decoration: InputDecoration(labelText: l10n.paymentMethodLabel),
+                    items: [
+                      DropdownMenuItem(value: 'cash', child: Text(l10n.paymentMethodCash)),
+                      DropdownMenuItem(value: 'card', child: Text(l10n.paymentMethodCard)),
                       DropdownMenuItem(
                         value: 'transfer',
-                        child: Text('Transfer'),
+                        child: Text(l10n.paymentMethodTransfer),
                       ),
-                      DropdownMenuItem(value: 'online', child: Text('Online')),
+                      DropdownMenuItem(value: 'online', child: Text(l10n.paymentMethodOnline)),
                     ],
                     onChanged: (value) =>
                         setLocal(() => method = value ?? 'cash'),
@@ -231,15 +233,15 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: type,
-                    decoration: const InputDecoration(labelText: 'Type'),
-                    items: const [
+                    decoration: InputDecoration(labelText: l10n.paymentsTypeLabel),
+                    items: [
                       DropdownMenuItem(
                         value: 'payment',
-                        child: Text('Payment'),
+                        child: Text(l10n.paymentTypePayment),
                       ),
                       DropdownMenuItem(
                         value: 'deposit',
-                        child: Text('Deposit'),
+                        child: Text(l10n.paymentTypeDeposit),
                       ),
                     ],
                     onChanged: (value) =>
@@ -249,8 +251,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   TextField(
                     controller: couponCode,
                     textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Coupon code (optional)',
+                    decoration: InputDecoration(
+                      labelText: l10n.paymentsCouponOptionalLabel,
                     ),
                   ),
                   if (membershipDiscountPercent != null)
@@ -260,8 +262,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                       onChanged: (v) =>
                           setLocal(() => applyMembershipDiscount = v ?? false),
                       title: Text(
-                        'Apply active membership discount '
-                        '($membershipDiscountPercent% off)',
+                        l10n.paymentsApplyMembershipDiscount('$membershipDiscountPercent'),
                       ),
                     ),
                   if (error != null)
@@ -280,11 +281,11 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
             actions: [
               TextButton(
                 onPressed: saving ? null : () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(l10n.commonCancel),
               ),
               FilledButton(
                 onPressed: saving ? null : save,
-                child: const Text('Save'),
+                child: Text(l10n.commonSave),
               ),
             ],
           );
@@ -324,12 +325,14 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   ),
                   const SizedBox(height: 12),
                   ...rows.map((row) {
-                    final customer = row.customerName ?? 'Customer';
+                    final customer = row.customerName ?? l10n.commonCustomerFallback;
                     return Card(
                       child: ListTile(
                         title: Text(customer),
                         subtitle: Text(
-                          '${row.method} • ${row.type} • ${row.status}',
+                          '${humanPaymentMethodLabel(l10n, row.method)} • '
+                          '${humanPaymentTypeLabel(l10n, row.type)} • '
+                          '${humanStatusLabel(l10n, row.status)}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -341,7 +344,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Print / share receipt',
+                              tooltip: l10n.paymentsPrintReceiptTooltip,
                               onPressed: () => printReceipt(row),
                               icon: const Icon(Icons.receipt_long_outlined),
                             ),
@@ -366,7 +369,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                             child: Text(l10n.commonPrevious),
                           ),
                           const SizedBox(width: 16),
-                          Text('Page ${page + 1}'),
+                          Text(l10n.commonPage(page + 1)),
                           const SizedBox(width: 16),
                           TextButton(
                             onPressed: hasMore

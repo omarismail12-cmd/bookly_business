@@ -1,5 +1,7 @@
 import "package:flutter/material.dart";
 
+import "../../core/localization/gen/app_localizations.dart";
+
 class AsyncErrorView extends StatelessWidget {
   final Object error;
   final VoidCallback onRetry;
@@ -13,7 +15,10 @@ class AsyncErrorView extends StatelessWidget {
         const SizedBox(height: 12),
         Text(error.toString(), textAlign: TextAlign.center),
         const SizedBox(height: 12),
-        FilledButton(onPressed: onRetry, child: const Text("Retry")),
+        FilledButton(
+          onPressed: onRetry,
+          child: Text(AppLocalizations.of(c).commonRetry),
+        ),
       ],
     ),
   );
@@ -21,7 +26,7 @@ class AsyncErrorView extends StatelessWidget {
 
 class EmptyState extends StatelessWidget {
   final String message;
-  const EmptyState({super.key, this.message = "Nothing here yet"});
+  const EmptyState({super.key, required this.message});
   @override
   Widget build(BuildContext c) => Center(child: Text(message));
 }

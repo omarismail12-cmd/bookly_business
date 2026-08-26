@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/async_state.dart';
 
 /// Appointments for the signed-in customer, across every business they've
@@ -57,6 +58,7 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
   }
 
   Future<void> openDetail(Map<String, dynamic> row) {
+    final l10n = AppLocalizations.of(context);
     final start = DateTime.parse(row['starts_at']).toLocal();
     final org = (row['organizations'] as Map?)?['name'] as String?;
     final currency = (row['organizations'] as Map?)?['currency'] as String? ?? 'USD';
@@ -69,7 +71,7 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
     return showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(org?.isNotEmpty == true ? org! : 'Appointment'),
+        title: Text(org?.isNotEmpty == true ? org! : l10n.apptTitleFallback),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -80,20 +82,22 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
                 '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
               ),
               const SizedBox(height: 8),
-              Text('Status: ${row['status']}'),
+              Text(l10n.myApptStatusLine(humanStatusLabel(l10n, row['status'] as String))),
               if (staff != null && staff.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text('Staff: $staff'),
+                Text(l10n.myApptStaffLine(staff)),
               ],
               if (services.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text('Services: ${services.join(', ')}'),
+                Text(l10n.myApptServicesLine(services.join(', '))),
               ],
               if (depositRequired > 0) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Deposit: ${formatMinor(depositPaid, currency: currency)} of '
-                  '${formatMinor(depositRequired, currency: currency)} paid',
+                  l10n.myApptDepositLine(
+                    formatMinor(depositPaid, currency: currency),
+                    formatMinor(depositRequired, currency: currency),
+                  ),
                 ),
               ],
             ],
@@ -102,7 +106,7 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(l10n.commonClose),
           ),
         ],
       ),
@@ -146,7 +150,9 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
                       '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} • $staff'
                       '${services.isNotEmpty ? ' • $services' : ''}',
                     ),
-                    trailing: Chip(label: Text('${row['status']}')),
+                    trailing: Chip(
+                      label: Text(humanStatusLabel(l10n, row['status'] as String)),
+                    ),
                   ),
                 );
               }).toList(),

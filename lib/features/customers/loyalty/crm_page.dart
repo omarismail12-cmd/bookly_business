@@ -7,6 +7,7 @@ import '../../../core/security/org_context.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../data/customers_repository.dart';
@@ -136,6 +137,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   }
 
   Future<void> addCustomer() async {
+    final l10n = AppLocalizations.of(context);
     final n = TextEditingController();
     final p = TextEditingController();
     final e = TextEditingController();
@@ -143,32 +145,32 @@ class _CrmPageState extends ConsumerState<CrmPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Add customer'),
+        title: Text(l10n.customersAddDialogTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: n,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(labelText: l10n.commonName),
             ),
             TextField(
               controller: p,
-              decoration: const InputDecoration(labelText: 'Phone'),
+              decoration: InputDecoration(labelText: l10n.commonPhone),
             ),
             TextField(
               controller: e,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(labelText: l10n.loginEmail),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, n.text.trim().isNotEmpty),
-            child: const Text('Add'),
+            child: Text(l10n.commonAdd),
           ),
         ],
       ),
@@ -224,6 +226,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   Future<void> campaign() async {
     final o = organizationId;
     if (o == null) return;
+    final l10n = AppLocalizations.of(context);
 
     final n = TextEditingController(text: 'Win Back Customers');
     final m = TextEditingController(
@@ -236,42 +239,40 @@ class _CrmPageState extends ConsumerState<CrmPage> {
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
           title: Text(
-            'Create campaign • ${_segmentLabel(segment)} segment',
+            l10n.crmCreateCampaignTitle(_segmentLabel(l10n, segment)),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: n,
-                decoration: const InputDecoration(labelText: 'Campaign name'),
+                decoration: InputDecoration(labelText: l10n.crmCampaignNameLabel),
               ),
               TextField(
                 controller: m,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Message'),
+                decoration: InputDecoration(labelText: l10n.crmMessageLabel),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: channel,
-                decoration: const InputDecoration(labelText: 'Channel'),
-                items: const [
+                decoration: InputDecoration(labelText: l10n.crmChannelLabel),
+                items: [
                   DropdownMenuItem(
                     value: 'push',
-                    child: Text('Push notification'),
+                    child: Text(l10n.crmChannelPush),
                   ),
-                  DropdownMenuItem(value: 'email', child: Text('Email')),
-                  DropdownMenuItem(value: 'sms', child: Text('SMS')),
+                  DropdownMenuItem(value: 'email', child: Text(l10n.crmChannelEmail)),
+                  DropdownMenuItem(value: 'sms', child: Text(l10n.crmChannelSms)),
                 ],
                 onChanged: (v) => setLocal(() => channel = v ?? 'push'),
               ),
               if (channel != 'push')
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Email/SMS delivery needs a provider that is not configured '
-                    'in this environment; the campaign will be recorded and its '
-                    'audience generated, but not actually delivered.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    l10n.crmChannelNoProviderWarning,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ),
             ],
@@ -279,11 +280,11 @@ class _CrmPageState extends ConsumerState<CrmPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save draft'),
+              child: Text(l10n.crmSaveDraft),
             ),
           ],
         ),
@@ -301,7 +302,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Campaign saved as draft.')),
+          SnackBar(content: Text(l10n.crmCampaignSavedDraft)),
         );
       }
       await load();
@@ -309,6 +310,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
   }
 
   Future<void> sendCampaign(String id) async {
+    final l10n = AppLocalizations.of(context);
     try {
       final channel = campaigns.firstWhere((c) => c['id'] == id)['channel'];
       final queued = await ref
@@ -319,10 +321,8 @@ class _CrmPageState extends ConsumerState<CrmPage> {
           SnackBar(
             content: Text(
               channel == 'push'
-                  ? 'Campaign sent to $queued recipient(s).'
-                  : '$queued recipient(s) generated, but $channel has no '
-                        'delivery provider configured — nothing was '
-                        'actually sent.',
+                  ? l10n.crmCampaignSentPush('$queued')
+                  : l10n.crmCampaignSentNoProvider('$queued', channel as String),
             ),
           ),
         );
@@ -330,21 +330,31 @@ class _CrmPageState extends ConsumerState<CrmPage> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not send campaign: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.crmCampaignSendFailed('$e'))),
+        );
       }
     }
   }
 
-  String _segmentLabel(String key) => switch (key) {
-    'all' => 'All customers',
-    'vip' => 'VIP',
-    'inactive' => 'Inactive 30d',
-    'no_show' => 'No-show risk',
-    'first' => 'First visit',
-    'birthday' => 'Birthday this month',
+  /// Accepts both the UI's segment filter keys ('inactive') and the DB
+  /// keys campaigns.segment actually stores ('inactive_30') — see
+  /// _segmentToDbKey above.
+  String _segmentLabel(AppLocalizations l10n, String key) => switch (key) {
+    'all' => l10n.crmSegmentAll,
+    'vip' => l10n.crmSegmentVip,
+    'inactive' || 'inactive_30' => l10n.crmSegmentInactive,
+    'no_show' || 'frequent_no_show' => l10n.crmSegmentNoShow,
+    'first' || 'first_visit' => l10n.crmSegmentFirstVisit,
+    'birthday' || 'birthday_month' => l10n.crmSegmentBirthday,
     _ => key,
+  };
+
+  String _channelLabel(AppLocalizations l10n, String channel) => switch (channel) {
+    'push' => l10n.crmChannelPush,
+    'email' => l10n.crmChannelEmail,
+    'sms' => l10n.crmChannelSms,
+    _ => channel,
   };
 
   @override
@@ -391,32 +401,32 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                   spacing: 8,
                   children: [
                     ChoiceChip(
-                      label: const Text('All'),
+                      label: Text(l10n.crmSegmentAll),
                       selected: segment == 'all',
                       onSelected: (_) => changeSegment('all'),
                     ),
                     ChoiceChip(
-                      label: const Text('VIP'),
+                      label: Text(l10n.crmSegmentVip),
                       selected: segment == 'vip',
                       onSelected: (_) => changeSegment('vip'),
                     ),
                     ChoiceChip(
-                      label: const Text('Inactive 30d'),
+                      label: Text(l10n.crmSegmentInactive),
                       selected: segment == 'inactive',
                       onSelected: (_) => changeSegment('inactive'),
                     ),
                     ChoiceChip(
-                      label: const Text('No-show risk'),
+                      label: Text(l10n.crmSegmentNoShow),
                       selected: segment == 'no_show',
                       onSelected: (_) => changeSegment('no_show'),
                     ),
                     ChoiceChip(
-                      label: const Text('First visit'),
+                      label: Text(l10n.crmSegmentFirstVisit),
                       selected: segment == 'first',
                       onSelected: (_) => changeSegment('first'),
                     ),
                     ChoiceChip(
-                      label: const Text('Birthday this month'),
+                      label: Text(l10n.crmSegmentBirthday),
                       selected: segment == 'birthday',
                       onSelected: (_) => changeSegment('birthday'),
                     ),
@@ -424,7 +434,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '${filtered.length} customers',
+                  l10n.crmCustomerCount(filtered.length),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
@@ -441,13 +451,13 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                       ),
                       title: Text(x.name),
                       subtitle: Text(
-                        '${x.email ?? ''} • no-shows ${x.noShowCount}',
+                        '${x.email ?? ''} • ${l10n.customersSubtitleNoShows(x.noShowCount)}',
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('$pts pts'),
+                          Text(l10n.crmPointsAbbrev(pts)),
                           Text(
                             formatMinor(x.totalSpentMinor, currency: currency),
                             style: Theme.of(context).textTheme.bodySmall,
@@ -473,7 +483,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                           child: Text(l10n.commonPrevious),
                         ),
                         const SizedBox(width: 16),
-                        Text('Page ${page + 1}'),
+                        Text(l10n.commonPage(page + 1)),
                         const SizedBox(width: 16),
                         TextButton(
                           onPressed: hasMore
@@ -490,7 +500,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                 if (campaigns.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Text(
-                    'Campaigns',
+                    l10n.crmCampaignsHeading,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
@@ -499,24 +509,23 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                       child: ListTile(
                         title: Text(cmp['name'] ?? ''),
                         subtitle: Text(
-                          '${cmp['segment']} • ${cmp['channel']} • ${cmp['status']}',
+                          '${_segmentLabel(l10n, cmp['segment'] as String? ?? '')} • '
+                          '${_channelLabel(l10n, cmp['channel'] as String? ?? '')} • '
+                          '${humanStatusLabel(l10n, cmp['status'] as String? ?? '')}',
                         ),
                         trailing: cmp['status'] == 'sent'
                             ? const Icon(Icons.check_circle, color: Colors.green)
                             : cmp['status'] == 'undeliverable'
-                            ? const Tooltip(
-                                message:
-                                    'Recipients were generated, but this '
-                                    'channel has no delivery provider '
-                                    'configured — nothing was actually sent.',
-                                child: Icon(
+                            ? Tooltip(
+                                message: l10n.crmUndeliverableTooltip,
+                                child: const Icon(
                                   Icons.error_outline,
                                   color: Colors.orange,
                                 ),
                               )
                             : TextButton(
                                 onPressed: () => sendCampaign(cmp['id']),
-                                child: const Text('Send'),
+                                child: Text(l10n.crmSend),
                               ),
                       ),
                     ),

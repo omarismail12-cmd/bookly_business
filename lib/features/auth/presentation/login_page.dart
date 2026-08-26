@@ -41,6 +41,7 @@ class _LoginPageState extends State<LoginPage> {
       _loading = true;
     });
 
+    final l10n = AppLocalizations.of(context);
     try {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
@@ -50,12 +51,12 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (response.user == null) {
-        throw Exception('Login failed.');
+        throw Exception(l10n.authLoginFailedGeneric);
       }
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Login successful!')));
+      ).showSnackBar(SnackBar(content: Text(l10n.authLoginSuccessful)));
 
       /*
        * Your router/auth listener should now
@@ -68,11 +69,11 @@ class _LoginPageState extends State<LoginPage> {
 
       if (e.message.toLowerCase().contains('invalid login') ||
           e.message.toLowerCase().contains('invalid credentials')) {
-        message = 'Incorrect email or password.';
+        message = l10n.authIncorrectCredentials;
       }
 
       if (e.message.toLowerCase().contains('email not confirmed')) {
-        message = 'Please confirm your email before logging in.';
+        message = l10n.authEmailConfirmRequired;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Login failed: $e'),
+          content: Text(l10n.authLoginFailed('$e')),
           backgroundColor: Colors.red,
         ),
       );
@@ -114,18 +115,18 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 24),
 
-                  const Text(
-                    'Welcome to Bookly',
+                  Text(
+                    l10n.loginWelcomeTitle,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 8),
 
                   Text(
-                    'Sign in to manage your business.',
+                    l10n.loginTagline,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Colors.grey),
                   ),
 
                   const SizedBox(height: 32),

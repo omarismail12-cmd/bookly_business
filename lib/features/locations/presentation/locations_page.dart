@@ -50,41 +50,42 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
   bool get canManage => role == 'owner' || role == 'manager';
 
   Future<void> edit({Location? existing}) async {
+    final l10n = AppLocalizations.of(context);
     final name = TextEditingController(text: existing?.name);
     final address = TextEditingController(text: existing?.address);
     final timezone = TextEditingController(text: existing?.timezone ?? 'UTC');
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'New location' : 'Edit location'),
+        title: Text(existing == null ? l10n.locationsNewTitle : l10n.locationsEditTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: name,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(labelText: l10n.commonName),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: address,
-              decoration: const InputDecoration(labelText: 'Address'),
+              decoration: InputDecoration(labelText: l10n.commonAddress),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: timezone,
-              decoration: const InputDecoration(labelText: 'Timezone'),
+              decoration: InputDecoration(labelText: l10n.orgSetupTimezoneLabel),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.pop(context, name.text.trim().isNotEmpty),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -117,27 +118,28 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not save location: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).locationsSaveFailed('$e'))),
+        );
       }
     }
   }
 
   Future<void> delete(Location row) async {
+    final l10n = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete location?'),
-        content: Text('Remove "${row.name}"? This cannot be undone.'),
+        title: Text(l10n.locationsDeleteTitle),
+        content: Text(l10n.commonConfirmDelete(row.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l10n.commonDelete),
           ),
         ],
       ),
@@ -149,7 +151,7 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not delete location: $e')),
+          SnackBar(content: Text(l10n.locationsDeleteFailed('$e'))),
         );
       }
     }
@@ -205,14 +207,14 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
                                 onSelected: (v) => v == 'edit'
                                     ? edit(existing: row)
                                     : delete(row),
-                                itemBuilder: (_) => const [
+                                itemBuilder: (_) => [
                                   PopupMenuItem(
                                     value: 'edit',
-                                    child: Text('Edit'),
+                                    child: Text(l10n.commonEdit),
                                   ),
                                   PopupMenuItem(
                                     value: 'delete',
-                                    child: Text('Delete'),
+                                    child: Text(l10n.commonDelete),
                                   ),
                                 ],
                               )

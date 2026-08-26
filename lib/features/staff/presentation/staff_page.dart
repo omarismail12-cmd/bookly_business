@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../data/staff_repository.dart';
 import '../domain/staff_member.dart';
@@ -41,23 +42,24 @@ class _StaffPageState extends ConsumerState<StaffPage> {
   }
 
   Future<void> add() async {
+    final l10n = AppLocalizations.of(context);
     final c = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Add staff'),
+        title: Text(l10n.staffAddTitle),
         content: TextField(
           controller: c,
-          decoration: const InputDecoration(labelText: 'Display name'),
+          decoration: InputDecoration(labelText: l10n.staffDisplayNameLabel),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, c.text.trim()),
-            child: const Text('Save'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -80,35 +82,31 @@ class _StaffPageState extends ConsumerState<StaffPage> {
   }
 
   Future<void> linkLogin(StaffMember row) async {
+    final l10n = AppLocalizations.of(context);
     final email = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Link login for ${row.displayName}'),
+        title: Text(l10n.staffLinkLoginTitle(row.displayName)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (row.profileId != null)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'This staff member is already linked to a login. '
-                  'Linking a new email will replace it.',
-                ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(l10n.staffAlreadyLinkedWarning),
               ),
             TextField(
               controller: email,
-              decoration: const InputDecoration(
-                labelText: 'Account email (must already have the Staff role)',
+              decoration: InputDecoration(
+                labelText: l10n.staffAccountEmailLabel,
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
               child: Text(
-                'If that account is already linked to a different staff '
-                'row here (e.g. auto-linked when the Staff role was '
-                'assigned), it will be moved to this one instead.',
-                style: TextStyle(fontSize: 12),
+                l10n.staffLinkMoveWarning,
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ],
@@ -116,12 +114,12 @@ class _StaffPageState extends ConsumerState<StaffPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.pop(context, email.text.trim().isNotEmpty),
-            child: const Text('Link'),
+            child: Text(l10n.staffLinkButton),
           ),
         ],
       ),
@@ -132,16 +130,16 @@ class _StaffPageState extends ConsumerState<StaffPage> {
           .read(staffRepositoryProvider)
           .linkToUserByEmail(staffId: row.id, email: email.text.trim());
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Login linked.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.staffLoginLinked)),
+        );
       }
       await load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not link login: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.staffLinkFailed('$e'))),
+        );
       }
     }
   }
@@ -149,6 +147,8 @@ class _StaffPageState extends ConsumerState<StaffPage> {
   Future<void> assignRole() async {
     final o = await ref.read(activeOrganizationProvider.future);
     if (o == null) return;
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     final email = TextEditingController();
     String r = 'staff';
     final ok = await showDialog<bool>(
@@ -156,27 +156,27 @@ class _StaffPageState extends ConsumerState<StaffPage> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Assign business role'),
+          title: Text(l10n.staffAssignRoleTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: email,
-                decoration: const InputDecoration(
-                  labelText: 'Existing account email',
+                decoration: InputDecoration(
+                  labelText: l10n.staffExistingAccountEmailLabel,
                 ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: r,
-                decoration: const InputDecoration(labelText: 'Role'),
-                items: const [
-                  DropdownMenuItem(value: 'manager', child: Text('Manager')),
+                decoration: InputDecoration(labelText: l10n.staffRoleLabel),
+                items: [
+                  DropdownMenuItem(value: 'manager', child: Text(l10n.staffRoleManager)),
                   DropdownMenuItem(
                     value: 'receptionist',
-                    child: Text('Receptionist'),
+                    child: Text(l10n.staffRoleReceptionist),
                   ),
-                  DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                  DropdownMenuItem(value: 'staff', child: Text(l10n.staffRoleStaff)),
                 ],
                 onChanged: (v) => setLocal(() => r = v ?? 'staff'),
               ),
@@ -185,12 +185,12 @@ class _StaffPageState extends ConsumerState<StaffPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.pop(context, email.text.trim().isNotEmpty),
-              child: const Text('Assign'),
+              child: Text(l10n.staffAssignButton),
             ),
           ],
         ),
@@ -204,15 +204,15 @@ class _StaffPageState extends ConsumerState<StaffPage> {
         role: r,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Role assigned.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.staffRoleAssigned)),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not assign role: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.staffAssignRoleFailed('$e'))),
+        );
       }
     }
   }
@@ -247,7 +247,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                         OutlinedButton.icon(
                           onPressed: assignRole,
                           icon: const Icon(Icons.admin_panel_settings),
-                          label: const Text('Assign role'),
+                          label: Text(l10n.staffAssignRoleButton),
                         ),
                     ],
                   ),
@@ -260,8 +260,8 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                         title: Text(n),
                         subtitle: Text(
                           row.profileId == null
-                              ? '${row.status} · no login linked'
-                              : row.status,
+                              ? l10n.staffNoLoginLinked(humanStatusLabel(l10n, row.status))
+                              : humanStatusLabel(l10n, row.status),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -269,8 +269,8 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                             if (role == 'owner')
                               IconButton(
                                 tooltip: row.profileId == null
-                                    ? 'Link login'
-                                    : 'Change linked login',
+                                    ? l10n.staffLinkLoginTooltip
+                                    : l10n.staffChangeLoginTooltip,
                                 onPressed: () => linkLogin(row),
                                 icon: Icon(
                                   row.profileId == null
@@ -279,7 +279,7 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                                 ),
                               ),
                             IconButton(
-                              tooltip: 'Schedule',
+                              tooltip: l10n.staffScheduleTooltip,
                               onPressed: role == 'owner' || role == 'manager'
                                   ? () => schedule(row.id, n)
                                   : null,

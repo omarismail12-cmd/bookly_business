@@ -24,6 +24,7 @@ import '../../locations/presentation/locations_page.dart';
 import '../../staff_portal/presentation/staff_today_page.dart';
 import '../../../shared/widgets/language_switcher_button.dart';
 import '../../../shared/widgets/sync_status_banner.dart';
+import '../../../shared/widgets/theme_switcher_button.dart';
 import 'organization_setup_page.dart';
 
 class BusinessShell extends ConsumerStatefulWidget {
@@ -158,6 +159,7 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
     if (loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final l10n = AppLocalizations.of(context);
     if (membership == null) {
       if (suspended) {
         return Scaffold(
@@ -167,14 +169,14 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Your Bookly business membership is suspended. Contact the business owner before creating or accessing another workspace.',
+                  Text(
+                    l10n.orgSuspendedMessage,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton(
                     onPressed: logout,
-                    child: const Text('Sign out'),
+                    child: Text(l10n.commonSignOut),
                   ),
                 ],
               ),
@@ -185,7 +187,6 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
       return OrganizationSetupPage(onCreated: load);
     }
     final role = AppRole.values.byName(membership!.role);
-    final l10n = AppLocalizations.of(context);
     items = [
       _NavItem(
         l10n.staffPortalTitle,
@@ -275,6 +276,7 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(child: Text(role.name)),
               ),
+              const ThemeSwitcherButton(),
               const LanguageSwitcherButton(),
               IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
             ],

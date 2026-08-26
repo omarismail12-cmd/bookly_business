@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/localization/gen/app_localizations.dart';
 import '../../core/sync/sync_models.dart';
 import '../../core/sync/sync_service.dart';
 
@@ -36,14 +37,15 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner> {
   Future<void> _openConflicts(SyncService sync) async {
     final conflicts = await sync.conflicts();
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Resolve conflicts'),
+        title: Text(l10n.syncResolveConflictsTitle),
         content: SizedBox(
           width: double.maxFinite,
           child: conflicts.isEmpty
-              ? const Text('Nothing left to resolve.')
+              ? Text(l10n.syncNothingToResolve)
               : ListView(
                   shrinkWrap: true,
                   children: conflicts
@@ -54,7 +56,7 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: Text(l10n.commonClose),
           ),
         ],
       ),
@@ -64,6 +66,7 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner> {
   @override
   Widget build(BuildContext context) {
     final sync = ref.watch(syncServiceProvider);
+    final l10n = AppLocalizations.of(context);
     return ValueListenableBuilder<int>(
       valueListenable: sync.pendingCount,
       builder: (context, pending, _) {
@@ -109,31 +112,31 @@ class _SyncStatusBannerState extends ConsumerState<SyncStatusBanner> {
                         Expanded(
                           child: Text(
                             hasConflicts
-                                ? '$conflicts change${conflicts == 1 ? '' : 's'} need${conflicts == 1 ? 's' : ''} your review.'
+                                ? l10n.syncConflictsNeedReview(conflicts)
                                 : hasFailed
-                                ? '$failed change${failed == 1 ? '' : 's'} could not be synced.'
+                                ? l10n.syncChangesFailed(failed)
                                 : offline
                                 ? (pending > 0
-                                      ? 'Offline — $pending change${pending == 1 ? '' : 's'} will sync when you\'re back online.'
-                                      : 'You are offline.')
-                                : '$pending change${pending == 1 ? '' : 's'} syncing…',
+                                      ? l10n.syncOfflinePendingChanges(pending)
+                                      : l10n.syncOffline)
+                                : l10n.syncChangesSyncing(pending),
                             style: const TextStyle(fontSize: 13),
                           ),
                         ),
                         if (hasConflicts)
                           TextButton(
                             onPressed: () => _openConflicts(sync),
-                            child: const Text('Resolve'),
+                            child: Text(l10n.syncResolve),
                           )
                         else if (hasFailed)
                           TextButton(
                             onPressed: sync.retryFailed,
-                            child: const Text('Retry'),
+                            child: Text(l10n.commonRetry),
                           )
                         else if (!offline && pending > 0)
                           TextButton(
                             onPressed: sync.drain,
-                            child: const Text('Retry now'),
+                            child: Text(l10n.syncRetryNow),
                           ),
                       ],
                     ),
@@ -175,6 +178,7 @@ class _ConflictTileState extends State<_ConflictTile> {
   @override
   Widget build(BuildContext context) {
     final op = widget.operation;
+    final l10n = AppLocalizations.of(context);
     final mineValue = op.payload.entries
         .where((e) => !e.key.startsWith('_'))
         .map((e) => '${e.key}: ${e.value}')
@@ -187,15 +191,15 @@ class _ConflictTileState extends State<_ConflictTile> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${op.entity} — this was changed elsewhere',
+              l10n.syncConflictChangedElsewhere(op.entity),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
-            Text('Your edit: $mineValue'),
+            Text(l10n.syncYourEdit(mineValue)),
             if (op.detail != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Current value: ${op.detail}',
+                l10n.syncCurrentValue(op.detail!),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -214,12 +218,12 @@ class _ConflictTileState extends State<_ConflictTile> {
                 children: [
                   OutlinedButton(
                     onPressed: () => _resolve(false),
-                    child: const Text('Keep theirs'),
+                    child: Text(l10n.syncKeepTheirs),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
                     onPressed: () => _resolve(true),
-                    child: const Text('Keep mine'),
+                    child: Text(l10n.syncKeepMine),
                   ),
                 ],
               ),

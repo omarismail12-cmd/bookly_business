@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/localization/gen/app_localizations.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../data/staff_schedule_repository.dart';
 import '../domain/staff_schedule.dart';
 import 'blocked_time_dialog.dart';
 
-const _weekdayLabels = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
+/// Reference Sunday (2024-01-07) — used with [DateFormat.EEEE] to get a
+/// correctly localized weekday name for `weekday` (0 = Sunday .. 6 =
+/// Saturday, matching the DB check constraint) without a separate ARB
+/// entry per day.
+String _weekdayLabel(int weekday, Locale locale) => DateFormat.EEEE(
+  locale.toString(),
+).format(DateTime(2024, 1, 7 + weekday));
 
 String _fmtTime(String hhmmss) {
   final parts = hhmmss.split(':');
@@ -96,6 +95,8 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
   }
 
   Future<void> editWorkingHours(int weekday) async {
+    final l10n = AppLocalizations.of(context);
+    final weekdayName = _weekdayLabel(weekday, Localizations.localeOf(context));
     final existing = hoursByWeekday[weekday];
     TimeOfDay start = existing != null
         ? _parseTime(existing.startTime)
@@ -107,12 +108,12 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text('Working hours • ${_weekdayLabels[weekday]}'),
+          title: Text(l10n.scheduleWorkingHoursDialogTitle(weekdayName)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: Text('Start: ${start.format(context)}'),
+                title: Text(l10n.scheduleStartLabel(start.format(context))),
                 onTap: () async {
                   final t = await showTimePicker(
                     context: context,
@@ -122,7 +123,7 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
                 },
               ),
               ListTile(
-                title: Text('End: ${end.format(context)}'),
+                title: Text(l10n.scheduleEndLabel(end.format(context))),
                 onTap: () async {
                   final t = await showTimePicker(
                     context: context,
@@ -137,15 +138,15 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
             if (existing != null)
               TextButton(
                 onPressed: () => Navigator.pop(context, 'clear'),
-                child: const Text('Remove'),
+                child: Text(l10n.scheduleRemove),
               ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, 'save'),
-              child: const Text('Save'),
+              child: Text(l10n.commonSave),
             ),
           ],
         ),
@@ -158,7 +159,7 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
         await repo.deleteWorkingHours(existing.id);
       } else if (result == 'save') {
         if (!(start.hour * 60 + start.minute < end.hour * 60 + end.minute)) {
-          throw Exception('Start time must be before end time.');
+          throw Exception(l10n.scheduleStartBeforeEnd);
         }
         await repo.upsertWorkingHours(
           staffId: widget.staffId,
@@ -169,11 +170,13 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
       }
       await load();
     } catch (e) {
-      _showError('Could not save working hours: $e');
+      _showError(l10n.scheduleSaveWorkingHoursFailed('$e'));
     }
   }
 
   Future<void> editBreak(int weekday) async {
+    final l10n = AppLocalizations.of(context);
+    final weekdayName = _weekdayLabel(weekday, Localizations.localeOf(context));
     final existing = breaksByWeekday[weekday];
     TimeOfDay start = existing != null
         ? _parseTime(existing.startTime)
@@ -185,12 +188,12 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text('Break • ${_weekdayLabels[weekday]}'),
+          title: Text(l10n.scheduleBreakDialogTitle(weekdayName)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: Text('Start: ${start.format(context)}'),
+                title: Text(l10n.scheduleStartLabel(start.format(context))),
                 onTap: () async {
                   final t = await showTimePicker(
                     context: context,
@@ -200,7 +203,7 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
                 },
               ),
               ListTile(
-                title: Text('End: ${end.format(context)}'),
+                title: Text(l10n.scheduleEndLabel(end.format(context))),
                 onTap: () async {
                   final t = await showTimePicker(
                     context: context,
@@ -215,15 +218,15 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
             if (existing != null)
               TextButton(
                 onPressed: () => Navigator.pop(context, 'clear'),
-                child: const Text('Remove'),
+                child: Text(l10n.scheduleRemove),
               ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, 'save'),
-              child: const Text('Save'),
+              child: Text(l10n.commonSave),
             ),
           ],
         ),
@@ -236,7 +239,7 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
         await repo.deleteBreak(existing.id);
       } else if (result == 'save') {
         if (!(start.hour * 60 + start.minute < end.hour * 60 + end.minute)) {
-          throw Exception('Start time must be before end time.');
+          throw Exception(l10n.scheduleStartBeforeEnd);
         }
         await repo.upsertBreak(
           staffId: widget.staffId,
@@ -247,7 +250,7 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
       }
       await load();
     } catch (e) {
-      _showError('Could not save break: $e');
+      _showError(l10n.scheduleSaveBreakFailed('$e'));
     }
   }
 
@@ -265,7 +268,8 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
       await ref.read(staffScheduleRepositoryProvider).deleteBlockedTime(row.id);
       await load();
     } catch (e) {
-      _showError('Could not remove blocked time: $e');
+      if (!mounted) return;
+      _showError(AppLocalizations.of(context).scheduleRemoveBlockedTimeFailed('$e'));
     }
   }
 
@@ -283,15 +287,16 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Schedule • ${widget.staffName}'),
+        title: Text(l10n.scheduleTitle(widget.staffName)),
         bottom: TabBar(
           controller: tabs,
-          tabs: const [
-            Tab(text: 'Working hours'),
-            Tab(text: 'Breaks'),
-            Tab(text: 'Blocked time'),
+          tabs: [
+            Tab(text: l10n.scheduleWorkingHoursTab),
+            Tab(text: l10n.scheduleBreaksTab),
+            Tab(text: l10n.scheduleBlockedTimeTab),
           ],
         ),
       ),
@@ -313,16 +318,16 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
                   startTimeOf: (r) => r.startTime,
                   endTimeOf: (r) => r.endTime,
                   onTap: editWorkingHours,
-                  emptyLabel: 'Off',
+                  emptyLabel: l10n.scheduleOff,
                 ),
                 _weekdayList<StaffBreak>(
                   byWeekday: breaksByWeekday,
                   startTimeOf: (r) => r.startTime,
                   endTimeOf: (r) => r.endTime,
                   onTap: editBreak,
-                  emptyLabel: 'No break',
+                  emptyLabel: l10n.scheduleNoBreak,
                 ),
-                _blockedTimeList(),
+                _blockedTimeList(l10n),
               ],
             ),
     );
@@ -343,7 +348,7 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
         final row = byWeekday[weekday];
         return Card(
           child: ListTile(
-            title: Text(_weekdayLabels[weekday]),
+            title: Text(_weekdayLabel(weekday, Localizations.localeOf(context))),
             subtitle: Text(
               row == null
                   ? emptyLabel
@@ -357,9 +362,9 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
     );
   }
 
-  Widget _blockedTimeList() {
+  Widget _blockedTimeList(AppLocalizations l10n) {
     if (blockedTimes.isEmpty) {
-      return const EmptyState(message: 'No blocked time scheduled.');
+      return EmptyState(message: l10n.scheduleNoBlockedTime);
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
