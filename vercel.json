@@ -1,0 +1,8 @@
+{
+  "installCommand": "echo 'No install step — the Flutter SDK is fetched inside buildCommand'",
+  "buildCommand": "bash vercel-build.sh",
+  "outputDirectory": "build/web",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
