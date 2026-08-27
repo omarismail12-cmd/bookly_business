@@ -40,6 +40,8 @@
   "bookingEmail": "البريد الإلكتروني",
   "bookingPhone": "رقم الهاتف",
   "bookingConfirmed": "تم تأكيد الحجز. الرقم المرجعي: {reference}",
+  "bookingNoQualifiedStaff": "لم يتم تعيين أي موظف لهذه الخدمة بعد — قم بتعيين الموظفين من صفحة الموظفين والجداول.",
+  "bookingStaffCannotPerformService": "هذا الموظف لا يقدّم الخدمة المختارة. يرجى اختيار موظف آخر.",
 
   "commonCancel": "إلغاء",
   "commonSave": "حفظ",
@@ -229,6 +231,7 @@
   "signupWelcomeTitle": "أنشئ حساب بوكلي الخاص بك",
   "signupTagline": "أدر نشاطك التجاري باستخدام بوكلي.",
   "loginCustomerPrompt": "هل أنت عميل؟ احجز موعدك من هنا",
+  "customerPortalBusinessPrompt": "هل أنت صاحب عمل؟ سجّل الدخول من هنا",
   "authForgotPasswordLink": "نسيت كلمة المرور؟",
   "authForgotPasswordTitle": "إعادة تعيين كلمة المرور",
   "authForgotPasswordInstructions": "أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.",
@@ -297,6 +300,11 @@
   "staffChangeLoginTooltip": "تغيير تسجيل الدخول المرتبط",
   "staffScheduleTooltip": "الجدول",
   "staffNoLoginLinked": "{status} · لا يوجد تسجيل دخول مرتبط",
+  "staffServicesTooltip": "الخدمات",
+  "staffServicesTitle": "خدمات {name}",
+  "staffServicesEmpty": "لا توجد خدمات لهذا النشاط التجاري بعد.",
+  "staffServicesUpdated": "تم تحديث الخدمات.",
+  "staffServicesUpdateFailed": "تعذّر تحديث الخدمات: {error}",
 
   "scheduleTitle": "الجدول • {name}",
   "scheduleWorkingHoursTab": "ساعات العمل",

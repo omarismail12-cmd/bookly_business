@@ -314,6 +314,18 @@ abstract class AppLocalizations {
   /// **'Booking confirmed. Reference: {reference}'**
   String bookingConfirmed(String reference);
 
+  /// No description provided for @bookingNoQualifiedStaff.
+  ///
+  /// In en, this message translates to:
+  /// **'No staff assigned to this service yet — assign staff in Staff & Schedules.'**
+  String get bookingNoQualifiedStaff;
+
+  /// No description provided for @bookingStaffCannotPerformService.
+  ///
+  /// In en, this message translates to:
+  /// **'This staff member doesn\'t offer the selected service. Please choose another.'**
+  String get bookingStaffCannotPerformService;
+
   /// No description provided for @commonCancel.
   ///
   /// In en, this message translates to:
@@ -1346,6 +1358,12 @@ abstract class AppLocalizations {
   /// **'Are you a customer? Book an appointment here'**
   String get loginCustomerPrompt;
 
+  /// No description provided for @customerPortalBusinessPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you a business? Sign in here'**
+  String get customerPortalBusinessPrompt;
+
   /// No description provided for @authForgotPasswordLink.
   ///
   /// In en, this message translates to:
@@ -1717,6 +1735,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{status} · no login linked'**
   String staffNoLoginLinked(String status);
+
+  /// No description provided for @staffServicesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Services'**
+  String get staffServicesTooltip;
+
+  /// No description provided for @staffServicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Services for {name}'**
+  String staffServicesTitle(String name);
+
+  /// No description provided for @staffServicesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This business has no services yet.'**
+  String get staffServicesEmpty;
+
+  /// No description provided for @staffServicesUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Services updated.'**
+  String get staffServicesUpdated;
+
+  /// No description provided for @staffServicesUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update services: {error}'**
+  String staffServicesUpdateFailed(String error);
 
   /// No description provided for @scheduleTitle.
   ///

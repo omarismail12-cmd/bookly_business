@@ -23,6 +23,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   List<Service> services = [];
   List<Customer> customers = [];
   List<Map<String, dynamic>> staff = [], locations = [], slots = [];
+  Map<String, List<String>> serviceStaffMap = {};
   String? serviceId, staffId, customerId, locationId;
   DateTime date = DateTime.now();
   bool loading = true, loadingSlots = false, booking = false;
@@ -70,6 +71,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       final st = await ref
           .read(staffRepositoryProvider)
           .listIdNameActive(org);
+      final ssMap = await ref
+          .read(staffRepositoryProvider)
+          .serviceIdsToStaffIds(org);
       final loc = await ref
           .read(locationsRepositoryProvider)
           .listIdNameActive(org);
@@ -82,6 +86,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         setState(() {
           services = s;
           staff = st;
+          serviceStaffMap = ssMap;
           locations = loc;
           locationId = locations.isNotEmpty
               ? locations.first['id'] as String
@@ -186,12 +191,24 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     }
   }
 
+  /// Staff qualified for the currently selected service (staff_services) —
+  /// falls back to the full active-staff list once no service is picked
+  /// yet, since there's nothing to filter against.
+  List<Map<String, dynamic>> get qualifiedStaff {
+    if (serviceId == null) return staff;
+    final ids = serviceStaffMap[serviceId] ?? const [];
+    return staff.where((s) => ids.contains(s['id'] as String)).toList();
+  }
+
   String _friendly(Object e) {
     final s = e.toString();
     if (s.contains('SLOT_ALREADY_BOOKED') || s.contains('SLOT_NOT_AVAILABLE')) {
       return 'This slot is no longer available. Please choose another time.';
     }
     if (s.contains('BUSINESS_NOT_FOUND')) return 'Business not found.';
+    if (s.contains('STAFF_CANNOT_PERFORM_SERVICE')) {
+      return AppLocalizations.of(context).bookingStaffCannotPerformService;
+    }
     return s.replaceFirst('Exception: ', '');
   }
 
@@ -247,7 +264,13 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                 )
                 .toList(),
             onChanged: (v) {
-              setState(() => serviceId = v);
+              setState(() {
+                serviceId = v;
+                if (staffId != null &&
+                    !qualifiedStaff.any((s) => s['id'] == staffId)) {
+                  staffId = null;
+                }
+              });
               getSlots();
             },
           ),
@@ -255,7 +278,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           DropdownButtonFormField<String>(
             initialValue: staffId,
             decoration: InputDecoration(labelText: l10n.bookingStaff),
-            items: staff
+            items: qualifiedStaff
                 .map(
                   (x) => DropdownMenuItem<String>(
                     value: (x['id'] as String),
@@ -268,6 +291,14 @@ class _BookingPageState extends ConsumerState<BookingPage> {
               getSlots();
             },
           ),
+          if (serviceId != null && qualifiedStaff.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                l10n.bookingNoQualifiedStaff,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           if (!isPublic) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(

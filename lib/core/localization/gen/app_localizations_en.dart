@@ -120,6 +120,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get bookingNoQualifiedStaff =>
+      'No staff assigned to this service yet — assign staff in Staff & Schedules.';
+
+  @override
+  String get bookingStaffCannotPerformService =>
+      'This staff member doesn\'t offer the selected service. Please choose another.';
+
+  @override
   String get commonCancel => 'Cancel';
 
   @override
@@ -709,6 +717,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you a customer? Book an appointment here';
 
   @override
+  String get customerPortalBusinessPrompt => 'Are you a business? Sign in here';
+
+  @override
   String get authForgotPasswordLink => 'Forgot password?';
 
   @override
@@ -933,6 +944,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String staffNoLoginLinked(String status) {
     return '$status · no login linked';
+  }
+
+  @override
+  String get staffServicesTooltip => 'Services';
+
+  @override
+  String staffServicesTitle(String name) {
+    return 'Services for $name';
+  }
+
+  @override
+  String get staffServicesEmpty => 'This business has no services yet.';
+
+  @override
+  String get staffServicesUpdated => 'Services updated.';
+
+  @override
+  String staffServicesUpdateFailed(String error) {
+    return 'Could not update services: $error';
   }
 
   @override

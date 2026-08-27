@@ -44,6 +44,8 @@
   "@bookingConfirmed": {
     "placeholders": {"reference": {"type": "String"}}
   },
+  "bookingNoQualifiedStaff": "No staff assigned to this service yet — assign staff in Staff & Schedules.",
+  "bookingStaffCannotPerformService": "This staff member doesn't offer the selected service. Please choose another.",
 
   "commonCancel": "Cancel",
   "commonSave": "Save",
@@ -250,6 +252,7 @@
   "signupWelcomeTitle": "Create your Bookly account",
   "signupTagline": "Manage your business with Bookly.",
   "loginCustomerPrompt": "Are you a customer? Book an appointment here",
+  "customerPortalBusinessPrompt": "Are you a business? Sign in here",
   "authForgotPasswordLink": "Forgot password?",
   "authForgotPasswordTitle": "Reset your password",
   "authForgotPasswordInstructions": "Enter your email and we'll send you a link to reset your password.",
@@ -335,6 +338,13 @@
   "staffScheduleTooltip": "Schedule",
   "staffNoLoginLinked": "{status} · no login linked",
   "@staffNoLoginLinked": {"placeholders": {"status": {"type": "String"}}},
+  "staffServicesTooltip": "Services",
+  "staffServicesTitle": "Services for {name}",
+  "@staffServicesTitle": {"placeholders": {"name": {"type": "String"}}},
+  "staffServicesEmpty": "This business has no services yet.",
+  "staffServicesUpdated": "Services updated.",
+  "staffServicesUpdateFailed": "Could not update services: {error}",
+  "@staffServicesUpdateFailed": {"placeholders": {"error": {"type": "String"}}},
 
   "scheduleTitle": "Schedule • {name}",
   "@scheduleTitle": {"placeholders": {"name": {"type": "String"}}},

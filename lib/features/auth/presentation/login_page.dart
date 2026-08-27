@@ -231,7 +231,7 @@ class _LoginPageState extends State<LoginPage> {
                   TextButton(
                     onPressed: _loading
                         ? null
-                        : () => context.go('/customer/login'),
+                        : () => context.push('/customer/login'),
                     child: Text(l10n.loginCustomerPrompt),
                   ),
                 ],

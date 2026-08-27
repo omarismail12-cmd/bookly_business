@@ -5,6 +5,7 @@ import '../../../core/security/org_context.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/skeleton.dart';
+import '../../services/data/services_repository.dart';
 import '../data/staff_repository.dart';
 import '../domain/staff_member.dart';
 import 'staff_schedule_page.dart';
@@ -218,6 +219,79 @@ class _StaffPageState extends ConsumerState<StaffPage> {
     }
   }
 
+  Future<void> editServices(StaffMember row) async {
+    final o = organizationId ?? await ref.read(activeOrganizationProvider.future);
+    if (o == null) return;
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final services = await ref.read(servicesRepositoryProvider).listIdName(o);
+    final assignedIds = (await ref
+            .read(staffRepositoryProvider)
+            .listAssignedServiceIds(row.id))
+        .toSet();
+    if (!mounted) return;
+    final result = await showDialog<Set<String>>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(l10n.staffServicesTitle(row.displayName)),
+          content: SizedBox(
+            width: 360,
+            child: services.isEmpty
+                ? Text(l10n.staffServicesEmpty)
+                : SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: services.map((s) {
+                        final id = s['id'] as String;
+                        final name = s['name'] as String;
+                        return CheckboxListTile(
+                          value: assignedIds.contains(id),
+                          title: Text(name),
+                          onChanged: (v) => setLocal(() {
+                            if (v == true) {
+                              assignedIds.add(id);
+                            } else {
+                              assignedIds.remove(id);
+                            }
+                          }),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, assignedIds),
+              child: Text(l10n.commonSave),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null) return;
+    try {
+      await ref
+          .read(staffRepositoryProvider)
+          .setAssignedServices(staffId: row.id, serviceIds: result.toList());
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.staffServicesUpdated)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.staffServicesUpdateFailed('$e'))),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -281,6 +355,13 @@ class _StaffPageState extends ConsumerState<StaffPage> {
                                       : Icons.link,
                                 ),
                               ),
+                            IconButton(
+                              tooltip: l10n.staffServicesTooltip,
+                              onPressed: role == 'owner' || role == 'manager'
+                                  ? () => editServices(row)
+                                  : null,
+                              icon: const Icon(Icons.design_services_outlined),
+                            ),
                             IconButton(
                               tooltip: l10n.staffScheduleTooltip,
                               onPressed: role == 'owner' || role == 'manager'

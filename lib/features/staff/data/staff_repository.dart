@@ -111,6 +111,62 @@ class StaffRepository {
     'link_staff_to_user_by_email',
     params: {'p_staff': staffId, 'p_email': email},
   );
+
+  /// Which services this staff member is qualified to perform
+  /// (`staff_services` — booking rejects any service/staff pair not
+  /// listed here, see 0002/0007/0009/0011/0013's STAFF_CANNOT_PERFORM_SERVICE
+  /// check).
+  Future<List<String>> listAssignedServiceIds(String staffId) async {
+    final rows = await client
+        .from('staff_services')
+        .select('service_id')
+        .eq('staff_id', staffId);
+    return List<Map<String, dynamic>>.from(
+      rows,
+    ).map((r) => r['service_id'] as String).toList();
+  }
+
+  /// Replaces this staff member's full set of qualified services.
+  Future<void> setAssignedServices({
+    required String staffId,
+    required List<String> serviceIds,
+  }) async {
+    await client.from('staff_services').delete().eq('staff_id', staffId);
+    if (serviceIds.isNotEmpty) {
+      await client
+          .from('staff_services')
+          .insert(
+            serviceIds
+                .map((id) => {'staff_id': staffId, 'service_id': id})
+                .toList(),
+          );
+    }
+  }
+
+  /// service_id -> qualified staff_ids, for every active staff member in
+  /// [organizationId] — lets booking_page.dart filter the staff dropdown to
+  /// only staff who can perform the selected service (readable by anon too,
+  /// via staff_services_public_select in 0012_public_storefront_access.sql,
+  /// so this also covers the public booking flow).
+  Future<Map<String, List<String>>> serviceIdsToStaffIds(
+    String organizationId,
+  ) async {
+    final staffIds = (await listIdNameActive(
+      organizationId,
+    )).map((r) => r['id'] as String).toList();
+    if (staffIds.isEmpty) return {};
+    final rows = await client
+        .from('staff_services')
+        .select('staff_id,service_id')
+        .inFilter('staff_id', staffIds);
+    final map = <String, List<String>>{};
+    for (final r in List<Map<String, dynamic>>.from(rows)) {
+      map
+          .putIfAbsent(r['service_id'] as String, () => [])
+          .add(r['staff_id'] as String);
+    }
+    return map;
+  }
 }
 
 final staffRepositoryProvider = Provider<StaffRepository>(

@@ -120,6 +120,14 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get bookingNoQualifiedStaff =>
+      'لم يتم تعيين أي موظف لهذه الخدمة بعد — قم بتعيين الموظفين من صفحة الموظفين والجداول.';
+
+  @override
+  String get bookingStaffCannotPerformService =>
+      'هذا الموظف لا يقدّم الخدمة المختارة. يرجى اختيار موظف آخر.';
+
+  @override
   String get commonCancel => 'إلغاء';
 
   @override
@@ -719,6 +727,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get loginCustomerPrompt => 'هل أنت عميل؟ احجز موعدك من هنا';
 
   @override
+  String get customerPortalBusinessPrompt =>
+      'هل أنت صاحب عمل؟ سجّل الدخول من هنا';
+
+  @override
   String get authForgotPasswordLink => 'نسيت كلمة المرور؟';
 
   @override
@@ -945,6 +957,25 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String staffNoLoginLinked(String status) {
     return '$status · لا يوجد تسجيل دخول مرتبط';
+  }
+
+  @override
+  String get staffServicesTooltip => 'الخدمات';
+
+  @override
+  String staffServicesTitle(String name) {
+    return 'خدمات $name';
+  }
+
+  @override
+  String get staffServicesEmpty => 'لا توجد خدمات لهذا النشاط التجاري بعد.';
+
+  @override
+  String get staffServicesUpdated => 'تم تحديث الخدمات.';
+
+  @override
+  String staffServicesUpdateFailed(String error) {
+    return 'تعذّر تحديث الخدمات: $error';
   }
 
   @override

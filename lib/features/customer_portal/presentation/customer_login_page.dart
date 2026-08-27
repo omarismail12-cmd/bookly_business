@@ -169,6 +169,13 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
                           ),
                     child: Text(l10n.loginNoAccount),
                   ),
+                  const Divider(height: 32),
+                  TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () => context.push('/login'),
+                    child: Text(l10n.customerPortalBusinessPrompt),
+                  ),
                 ],
               ),
             ),
