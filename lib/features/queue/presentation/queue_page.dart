@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/security/org_context.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/async_state.dart';
 import '../../../../shared/widgets/skeleton.dart';
 import '../../services/data/services_repository.dart';
@@ -202,7 +203,9 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                   ),
                 ...rows.map((row) {
                   final customer = row.customerName ?? l10n.commonCustomerFallback;
-                  return Card(
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                    child: Card(
                     child: ListTile(
                       leading: CircleAvatar(
                         child: Text('${row.queueNumber}'),
@@ -229,6 +232,7 @@ class _QueuePageState extends ConsumerState<QueuePage> {
                           ),
                         ],
                       ),
+                    ),
                     ),
                   );
                 }),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../services/data/services_repository.dart';
@@ -235,42 +236,45 @@ class _PackagesTabState extends ConsumerState<_PackagesTab> {
                   ? [Text(l10n.offersNoPackagesYet)]
                   : rows
                         .map(
-                          (r) => Card(
-                            child: ListTile(
-                              title: Text(r.name),
-                              subtitle: Text(
-                                '${r.serviceName ?? l10n.offersAnyService} • '
-                                '${l10n.offersUsesCount(r.totalUses)}'
-                                '${r.expiresDays != null ? ' • ${l10n.offersExpiresInDays(r.expiresDays!)}' : ''}'
-                                '${!r.active ? ' • ${l10n.statusInactive}' : ''}',
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    formatMinor(
-                                      r.priceMinor,
-                                      currency: currency,
+                          (r) => Padding(
+                            padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                            child: Card(
+                              child: ListTile(
+                                title: Text(r.name),
+                                subtitle: Text(
+                                  '${r.serviceName ?? l10n.offersAnyService} • '
+                                  '${l10n.offersUsesCount(r.totalUses)}'
+                                  '${r.expiresDays != null ? ' • ${l10n.offersExpiresInDays(r.expiresDays!)}' : ''}'
+                                  '${!r.active ? ' • ${l10n.statusInactive}' : ''}',
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      formatMinor(
+                                        r.priceMinor,
+                                        currency: currency,
+                                      ),
                                     ),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    onSelected: (v) => v == 'edit'
-                                        ? edit(existing: r)
-                                        : toggleActive(r),
-                                    itemBuilder: (_) => [
-                                      PopupMenuItem(
-                                        value: 'edit',
-                                        child: Text(l10n.commonEdit),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'toggle',
-                                        child: Text(
-                                          r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                    PopupMenuButton<String>(
+                                      onSelected: (v) => v == 'edit'
+                                          ? edit(existing: r)
+                                          : toggleActive(r),
+                                      itemBuilder: (_) => [
+                                        PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text(l10n.commonEdit),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                        PopupMenuItem(
+                                          value: 'toggle',
+                                          child: Text(
+                                            r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -436,40 +440,43 @@ class _MembershipsTabState extends ConsumerState<_MembershipsTab> {
                   ? [Text(l10n.offersNoMembershipsYet)]
                   : rows
                         .map(
-                          (r) => Card(
-                            child: ListTile(
-                              title: Text(r.name),
-                              subtitle: Text(
-                                l10n.offersDiscountOffDuration('${r.discountPercent}', r.durationDays) +
-                                    (!r.active ? ' • ${l10n.statusInactive}' : ''),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    formatMinor(
-                                      r.priceMinor,
-                                      currency: currency,
+                          (r) => Padding(
+                            padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                            child: Card(
+                              child: ListTile(
+                                title: Text(r.name),
+                                subtitle: Text(
+                                  l10n.offersDiscountOffDuration('${r.discountPercent}', r.durationDays) +
+                                      (!r.active ? ' • ${l10n.statusInactive}' : ''),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      formatMinor(
+                                        r.priceMinor,
+                                        currency: currency,
+                                      ),
                                     ),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    onSelected: (v) => v == 'edit'
-                                        ? edit(existing: r)
-                                        : toggleActive(r),
-                                    itemBuilder: (_) => [
-                                      PopupMenuItem(
-                                        value: 'edit',
-                                        child: Text(l10n.commonEdit),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'toggle',
-                                        child: Text(
-                                          r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                    PopupMenuButton<String>(
+                                      onSelected: (v) => v == 'edit'
+                                          ? edit(existing: r)
+                                          : toggleActive(r),
+                                      itemBuilder: (_) => [
+                                        PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text(l10n.commonEdit),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                        PopupMenuItem(
+                                          value: 'toggle',
+                                          child: Text(
+                                            r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -627,47 +634,50 @@ class _CouponsTabState extends ConsumerState<_CouponsTab> {
                   ? [Text(l10n.offersNoCouponsYet)]
                   : rows
                         .map(
-                          (r) => Card(
-                            child: ListTile(
-                              title: Text(r.code),
-                              subtitle: Text(
-                                (r.usageLimit != null
-                                        ? l10n.offersUsedCountLimited(r.usageCount, r.usageLimit!)
-                                        : l10n.offersUsedCountUnlimited(r.usageCount)) +
-                                    (r.expiresAt != null
-                                        ? ' • ${l10n.customerDetailExpiresOn(r.expiresAt!.toLocal().toString().substring(0, 10))}'
-                                        : '') +
-                                    (!r.active ? ' • ${l10n.statusInactive}' : ''),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    r.discountPercent != null
-                                        ? '${r.discountPercent}%'
-                                        : formatMinor(
-                                            r.discountMinor ?? 0,
-                                            currency: currency,
-                                          ),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    onSelected: (v) => v == 'edit'
-                                        ? edit(existing: r)
-                                        : toggleActive(r),
-                                    itemBuilder: (_) => [
-                                      PopupMenuItem(
-                                        value: 'edit',
-                                        child: Text(l10n.commonEdit),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'toggle',
-                                        child: Text(
-                                          r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                          (r) => Padding(
+                            padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                            child: Card(
+                              child: ListTile(
+                                title: Text(r.code),
+                                subtitle: Text(
+                                  (r.usageLimit != null
+                                          ? l10n.offersUsedCountLimited(r.usageCount, r.usageLimit!)
+                                          : l10n.offersUsedCountUnlimited(r.usageCount)) +
+                                      (r.expiresAt != null
+                                          ? ' • ${l10n.customerDetailExpiresOn(r.expiresAt!.toLocal().toString().substring(0, 10))}'
+                                          : '') +
+                                      (!r.active ? ' • ${l10n.statusInactive}' : ''),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      r.discountPercent != null
+                                          ? '${r.discountPercent}%'
+                                          : formatMinor(
+                                              r.discountMinor ?? 0,
+                                              currency: currency,
+                                            ),
+                                    ),
+                                    PopupMenuButton<String>(
+                                      onSelected: (v) => v == 'edit'
+                                          ? edit(existing: r)
+                                          : toggleActive(r),
+                                      itemBuilder: (_) => [
+                                        PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text(l10n.commonEdit),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                        PopupMenuItem(
+                                          value: 'toggle',
+                                          child: Text(
+                                            r.active ? l10n.offersDeactivate : l10n.offersReactivate,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),

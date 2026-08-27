@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../data/staff_schedule_repository.dart';
@@ -346,16 +347,19 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
       itemBuilder: (context, i) {
         final weekday = i; // 0 = Sunday .. 6 = Saturday, matches DB check
         final row = byWeekday[weekday];
-        return Card(
-          child: ListTile(
-            title: Text(_weekdayLabel(weekday, Localizations.localeOf(context))),
-            subtitle: Text(
-              row == null
-                  ? emptyLabel
-                  : '${_fmtTime(startTimeOf(row))} – ${_fmtTime(endTimeOf(row))}',
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+          child: Card(
+            child: ListTile(
+              title: Text(_weekdayLabel(weekday, Localizations.localeOf(context))),
+              subtitle: Text(
+                row == null
+                    ? emptyLabel
+                    : '${_fmtTime(startTimeOf(row))} – ${_fmtTime(endTimeOf(row))}',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => onTap(weekday),
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => onTap(weekday),
           ),
         );
       },
@@ -373,16 +377,19 @@ class _StaffSchedulePageState extends ConsumerState<StaffSchedulePage>
         final row = blockedTimes[i];
         final start = row.startsAt.toLocal();
         final end = row.endsAt.toLocal();
-        return Card(
-          child: ListTile(
-            title: Text(DateFormat.yMMMd().add_jm().format(start)),
-            subtitle: Text(
-              '${DateFormat.jm().format(end)}'
-              '${row.reason != null ? ' • ${row.reason}' : ''}',
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => deleteBlockedTime(row),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+          child: Card(
+            child: ListTile(
+              title: Text(DateFormat.yMMMd().add_jm().format(start)),
+              subtitle: Text(
+                '${DateFormat.jm().format(end)}'
+                '${row.reason != null ? ' • ${row.reason}' : ''}',
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => deleteBlockedTime(row),
+              ),
             ),
           ),
         );

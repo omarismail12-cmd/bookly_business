@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/async_state.dart';
@@ -141,17 +142,20 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
                     .map((s) => (s['services'] as Map?)?['name'])
                     .whereType<String>()
                     .join(', ');
-                return Card(
-                  child: ListTile(
-                    onTap: () => openDetail(row),
-                    title: Text(org),
-                    subtitle: Text(
-                      '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '
-                      '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} • $staff'
-                      '${services.isNotEmpty ? ' • $services' : ''}',
-                    ),
-                    trailing: Chip(
-                      label: Text(humanStatusLabel(l10n, row['status'] as String)),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                  child: Card(
+                    child: ListTile(
+                      onTap: () => openDetail(row),
+                      title: Text(org),
+                      subtitle: Text(
+                        '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '
+                        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} • $staff'
+                        '${services.isNotEmpty ? ' • $services' : ''}',
+                      ),
+                      trailing: Chip(
+                        label: Text(humanStatusLabel(l10n, row['status'] as String)),
+                      ),
                     ),
                   ),
                 );

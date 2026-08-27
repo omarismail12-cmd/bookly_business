@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/formatters/currency.dart';
 import '../data/services_repository.dart';
 import '../domain/service.dart';
@@ -217,30 +218,33 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
               ),
               const SizedBox(height: 12),
               ...rows.map(
-                (row) => Card(
-                  child: ListTile(
-                    title: Text(row.name),
-                    subtitle: Text(
-                      '${row.durationMin} min • buffer ${row.bufferMin} min'
-                      '${row.depositRequiredMinor > 0 ? ' • deposit ${formatMinor(row.depositRequiredMinor, currency: currency)}' : ''}'
-                      '${row.description != null && row.description!.isNotEmpty ? '\n${row.description}' : ''}',
-                    ),
-                    isThreeLine: row.description != null && row.description!.isNotEmpty,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(formatMinor(row.priceMinor, currency: currency)),
-                        IconButton(
-                          tooltip: l10n.servicesEditDescriptionTooltip,
-                          onPressed: () => editDescription(row),
-                          icon: const Icon(Icons.edit_outlined),
-                        ),
-                        IconButton(
-                          tooltip: l10n.commonDelete,
-                          onPressed: () => delete(row),
-                          icon: const Icon(Icons.delete_outline),
-                        ),
-                      ],
+                (row) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                  child: Card(
+                    child: ListTile(
+                      title: Text(row.name),
+                      subtitle: Text(
+                        '${row.durationMin} min • buffer ${row.bufferMin} min'
+                        '${row.depositRequiredMinor > 0 ? ' • deposit ${formatMinor(row.depositRequiredMinor, currency: currency)}' : ''}'
+                        '${row.description != null && row.description!.isNotEmpty ? '\n${row.description}' : ''}',
+                      ),
+                      isThreeLine: row.description != null && row.description!.isNotEmpty,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(formatMinor(row.priceMinor, currency: currency)),
+                          IconButton(
+                            tooltip: l10n.servicesEditDescriptionTooltip,
+                            onPressed: () => editDescription(row),
+                            icon: const Icon(Icons.edit_outlined),
+                          ),
+                          IconButton(
+                            tooltip: l10n.commonDelete,
+                            onPressed: () => delete(row),
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

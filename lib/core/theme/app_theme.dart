@@ -13,6 +13,15 @@ class AppTheme {
   static const darkSurface = Color(0xFF1E1C24);
   static const darkBorder = Color(0xFF3A3742);
 
+  /// Vertical gap between consecutive cards in a list (Calendar, Queue,
+  /// Customers, Payments, CRM, Staff, …). cardTheme below sets `margin:
+  /// EdgeInsets.zero` deliberately (cards inside dialogs/detail views
+  /// shouldn't carry list spacing baked in), so list screens are
+  /// responsible for adding this themselves between rows — matches the
+  /// spacing SkeletonList and staff_today_page.dart's ListView.separated
+  /// already use for their own rows.
+  static const listItemSpacing = 12.0;
+
   static ThemeData light() {
     final scheme = ColorScheme.fromSeed(
       seedColor: primary,

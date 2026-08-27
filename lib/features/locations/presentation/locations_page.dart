@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../data/locations_repository.dart';
@@ -190,35 +191,38 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
                       ),
                     ),
                   ...rows.map(
-                    (row) => Card(
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.storefront_outlined),
+                    (row) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                      child: Card(
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.storefront_outlined),
+                          ),
+                          title: Text(row.name),
+                          subtitle: Text(
+                            [
+                              if ((row.address ?? '').isNotEmpty) row.address,
+                              row.timezone,
+                            ].join(' • '),
+                          ),
+                          trailing: canManage
+                              ? PopupMenuButton<String>(
+                                  onSelected: (v) => v == 'edit'
+                                      ? edit(existing: row)
+                                      : delete(row),
+                                  itemBuilder: (_) => [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text(l10n.commonEdit),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text(l10n.commonDelete),
+                                    ),
+                                  ],
+                                )
+                              : null,
                         ),
-                        title: Text(row.name),
-                        subtitle: Text(
-                          [
-                            if ((row.address ?? '').isNotEmpty) row.address,
-                            row.timezone,
-                          ].join(' • '),
-                        ),
-                        trailing: canManage
-                            ? PopupMenuButton<String>(
-                                onSelected: (v) => v == 'edit'
-                                    ? edit(existing: row)
-                                    : delete(row),
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text(l10n.commonEdit),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text(l10n.commonDelete),
-                                  ),
-                                ],
-                              )
-                            : null,
                       ),
                     ),
                   ),

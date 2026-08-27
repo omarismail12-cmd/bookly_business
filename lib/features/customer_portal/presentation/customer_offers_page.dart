@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/async_state.dart';
 
@@ -95,15 +96,18 @@ class _CustomerOffersPageState extends State<CustomerOffersPage> {
                   ...campaigns.map((x) {
                     final campaign = x['campaigns'] as Map?;
                     final org = (campaign?['organizations'] as Map?)?['name'];
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.campaign_outlined),
-                        title: Text(campaign?['name']?.toString() ?? ''),
-                        subtitle: Text(
-                          '${campaign?['message'] ?? ''}'
-                          '${org != null ? '\n$org' : ''}',
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                      child: Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.campaign_outlined),
+                          title: Text(campaign?['name']?.toString() ?? ''),
+                          subtitle: Text(
+                            '${campaign?['message'] ?? ''}'
+                            '${org != null ? '\n$org' : ''}',
+                          ),
+                          isThreeLine: org != null,
                         ),
-                        isThreeLine: org != null,
                       ),
                     );
                   }),
@@ -126,17 +130,20 @@ class _CustomerOffersPageState extends State<CustomerOffersPage> {
                         ? '$pct%'
                         : formatMinor(minor ?? 0, currency: currency);
                     final expiresAt = x['expires_at'] as String?;
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.local_offer_outlined),
-                        title: Text(x['code']?.toString() ?? ''),
-                        subtitle: Text(
-                          '${org?['name'] ?? ''}'
-                          '${expiresAt != null ? ' • expires ${DateTime.parse(expiresAt).toLocal().toString().substring(0, 10)}' : ''}',
-                        ),
-                        trailing: Text(
-                          value,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                      child: Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.local_offer_outlined),
+                          title: Text(x['code']?.toString() ?? ''),
+                          subtitle: Text(
+                            '${org?['name'] ?? ''}'
+                            '${expiresAt != null ? ' • expires ${DateTime.parse(expiresAt).toLocal().toString().substring(0, 10)}' : ''}',
+                          ),
+                          trailing: Text(
+                            value,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     );

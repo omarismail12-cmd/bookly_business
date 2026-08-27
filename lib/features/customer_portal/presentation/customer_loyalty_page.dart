@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/localization/gen/app_localizations.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/async_state.dart';
 
 /// Loyalty points, packages and memberships for the signed-in customer,
@@ -84,36 +85,45 @@ class _CustomerLoyaltyPageState extends State<CustomerLoyaltyPage> {
                 ...loyalty.map((x) {
                   final org =
                       (x['customers'] as Map?)?['organizations'] as Map?;
-                  return Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.card_giftcard),
-                      title: Text(org?['name'] ?? ''),
-                      trailing: Text(
-                        l10n.loyaltyPoints('${x['points'] ?? 0}'),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                    child: Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.card_giftcard),
+                        title: Text(org?['name'] ?? ''),
+                        trailing: Text(
+                          l10n.loyaltyPoints('${x['points'] ?? 0}'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   );
                 }),
                 ...packages.map(
-                  (x) => Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.confirmation_number_outlined),
-                      title: Text((x['packages'] as Map?)?['name'] ?? ''),
-                      subtitle: Text(
-                        l10n.loyaltyUsesLeft('${x['remaining_uses']}'),
+                  (x) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                    child: Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.confirmation_number_outlined),
+                        title: Text((x['packages'] as Map?)?['name'] ?? ''),
+                        subtitle: Text(
+                          l10n.loyaltyUsesLeft('${x['remaining_uses']}'),
+                        ),
                       ),
                     ),
                   ),
                 ),
                 ...memberships.map(
-                  (x) => Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.workspace_premium_outlined),
-                      title: Text((x['memberships'] as Map?)?['name'] ?? ''),
-                      subtitle: Text(
-                        l10n.loyaltyUntilDate(
-                          DateTime.parse(x['ends_at']).toLocal().toString().substring(0, 10),
+                  (x) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                    child: Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.workspace_premium_outlined),
+                        title: Text((x['memberships'] as Map?)?['name'] ?? ''),
+                        subtitle: Text(
+                          l10n.loyaltyUntilDate(
+                            DateTime.parse(x['ends_at']).toLocal().toString().substring(0, 10),
+                          ),
                         ),
                       ),
                     ),

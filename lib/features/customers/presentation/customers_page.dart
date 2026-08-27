@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../core/sync/sync_models.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/widgets/async_state.dart';
@@ -238,21 +239,24 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
             ),
           ),
         ...rows.map((row) {
-          return Card(
-            child: ListTile(
-              onTap: row.pending ? null : () => openDetail(row),
-              title: Text(row.name),
-              subtitle: Text(
-                '${row.phone ?? ''} • ${l10n.customersSubtitleNoShows(row.noShowCount)}',
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+            child: Card(
+              child: ListTile(
+                onTap: row.pending ? null : () => openDetail(row),
+                title: Text(row.name),
+                subtitle: Text(
+                  '${row.phone ?? ''} • ${l10n.customersSubtitleNoShows(row.noShowCount)}',
+                ),
+                trailing: row.pending
+                    ? Tooltip(
+                        message: l10n.customersWaitingToSync,
+                        child: const Icon(Icons.sync, size: 18),
+                      )
+                    : Text(
+                        formatMinor(row.totalSpentMinor, currency: currency),
+                      ),
               ),
-              trailing: row.pending
-                  ? Tooltip(
-                      message: l10n.customersWaitingToSync,
-                      child: const Icon(Icons.sync, size: 18),
-                    )
-                  : Text(
-                      formatMinor(row.totalSpentMinor, currency: currency),
-                    ),
             ),
           );
         }),

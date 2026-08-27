@@ -6,6 +6,7 @@ import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import '../../../core/sync/sync_models.dart';
 import '../../../core/sync/sync_service.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/async_state.dart';
@@ -440,7 +441,9 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                 const SizedBox(height: 8),
                 ...filtered.map((x) {
                   final pts = points[x.id] ?? 0;
-                  return Card(
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                    child: Card(
                     child: ListTile(
                       leading: CircleAvatar(
                         child: Text(
@@ -464,6 +467,7 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                           ),
                         ],
                       ),
+                    ),
                     ),
                   );
                 }),
@@ -505,28 +509,31 @@ class _CrmPageState extends ConsumerState<CrmPage> {
                   ),
                   const SizedBox(height: 8),
                   ...campaigns.map(
-                    (cmp) => Card(
-                      child: ListTile(
-                        title: Text(cmp['name'] ?? ''),
-                        subtitle: Text(
-                          '${_segmentLabel(l10n, cmp['segment'] as String? ?? '')} • '
-                          '${_channelLabel(l10n, cmp['channel'] as String? ?? '')} • '
-                          '${humanStatusLabel(l10n, cmp['status'] as String? ?? '')}',
-                        ),
-                        trailing: cmp['status'] == 'sent'
-                            ? const Icon(Icons.check_circle, color: Colors.green)
-                            : cmp['status'] == 'undeliverable'
-                            ? Tooltip(
-                                message: l10n.crmUndeliverableTooltip,
-                                child: const Icon(
-                                  Icons.error_outline,
-                                  color: Colors.orange,
+                    (cmp) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                      child: Card(
+                        child: ListTile(
+                          title: Text(cmp['name'] ?? ''),
+                          subtitle: Text(
+                            '${_segmentLabel(l10n, cmp['segment'] as String? ?? '')} • '
+                            '${_channelLabel(l10n, cmp['channel'] as String? ?? '')} • '
+                            '${humanStatusLabel(l10n, cmp['status'] as String? ?? '')}',
+                          ),
+                          trailing: cmp['status'] == 'sent'
+                              ? const Icon(Icons.check_circle, color: Colors.green)
+                              : cmp['status'] == 'undeliverable'
+                              ? Tooltip(
+                                  message: l10n.crmUndeliverableTooltip,
+                                  child: const Icon(
+                                    Icons.error_outline,
+                                    color: Colors.orange,
+                                  ),
+                                )
+                              : TextButton(
+                                  onPressed: () => sendCampaign(cmp['id']),
+                                  child: Text(l10n.crmSend),
                                 ),
-                              )
-                            : TextButton(
-                                onPressed: () => sendCampaign(cmp['id']),
-                                child: Text(l10n.crmSend),
-                              ),
+                        ),
                       ),
                     ),
                   ),

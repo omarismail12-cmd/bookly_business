@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/formatters/currency.dart';
 import '../../../shared/formatters/status_labels.dart';
 import '../../../shared/widgets/skeleton.dart';
@@ -217,7 +218,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       final depositDue =
                           ((row['deposit_required_minor'] as num?) ?? 0) -
                           ((row['deposit_paid_minor'] as num?) ?? 0);
-                      return Card(
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                        child: Card(
                         child: ListTile(
                           title: Text(customer),
                           subtitle: Text(
@@ -261,6 +264,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                               ),
                             ],
                           ),
+                        ),
                         ),
                       );
                     }),

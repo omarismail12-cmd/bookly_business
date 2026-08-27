@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/formatters/currency.dart';
 import '../../../../shared/widgets/skeleton.dart';
 import '../data/reports_repository.dart';
@@ -210,15 +211,18 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ...staffPerformance
               .take((staffPage + 1) * _staffPageSize)
               .map(
-                (s) => Card(
-                  child: ListTile(
-                    title: Text(s.displayName),
-                    subtitle: Text(
-                      l10n.reportsStaffCompletedNoShows(s.completed, s.noShow),
-                    ),
-                    trailing: Text(
-                      formatMinor(s.revenueMinor, currency: currency),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                (s) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                  child: Card(
+                    child: ListTile(
+                      title: Text(s.displayName),
+                      subtitle: Text(
+                        l10n.reportsStaffCompletedNoShows(s.completed, s.noShow),
+                      ),
+                      trailing: Text(
+                        formatMinor(s.revenueMinor, currency: currency),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ),
@@ -238,10 +242,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     );
   }
 
-  Widget _row(String a, Object? b) => Card(
+  Widget _row(String a, Object? b) => Padding(
+    padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+    child: Card(
     child: ListTile(
       title: Text(a),
       trailing: Text('${b ?? 0}', style: const TextStyle(fontWeight: FontWeight.bold)),
+    ),
     ),
   );
 }

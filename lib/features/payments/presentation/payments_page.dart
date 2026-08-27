@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/localization/gen/app_localizations.dart';
 import '../../../../core/pdf/pdf_document_service.dart';
 import '../../../../core/security/org_context.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/formatters/currency.dart';
 import '../../../../shared/formatters/status_labels.dart';
 import '../../../../shared/widgets/skeleton.dart';
@@ -326,7 +327,9 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                   const SizedBox(height: 12),
                   ...rows.map((row) {
                     final customer = row.customerName ?? l10n.commonCustomerFallback;
-                    return Card(
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.listItemSpacing),
+                      child: Card(
                       child: ListTile(
                         title: Text(customer),
                         subtitle: Text(
@@ -350,6 +353,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                             ),
                           ],
                         ),
+                      ),
                       ),
                     );
                   }),
