@@ -68,19 +68,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             style: Theme.of(c).textTheme.headlineSmall,
           ),
           const SizedBox(height: 20),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              _card(l10n.dashboardCardAppointments, '${d.appointments}', Icons.calendar_month),
-              _card(l10n.dashboardCardCompleted, '${d.completed}', Icons.check_circle),
-              _card(l10n.dashboardCardNoShows, '${d.noShow}', Icons.warning),
-              _card(
-                l10n.dashboardCardRevenue,
-                formatMinor(d.revenueMinor, currency: currency),
-                Icons.payments,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 16.0;
+              const minTileWidth = 140.0;
+              final columns = ((constraints.maxWidth + spacing) /
+                      (minTileWidth + spacing))
+                  .floor()
+                  .clamp(1, 4);
+              final tileWidth =
+                  (constraints.maxWidth - spacing * (columns - 1)) / columns;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  _card(l10n.dashboardCardAppointments, '${d.appointments}', Icons.calendar_month, tileWidth),
+                  _card(l10n.dashboardCardCompleted, '${d.completed}', Icons.check_circle, tileWidth),
+                  _card(l10n.dashboardCardNoShows, '${d.noShow}', Icons.warning, tileWidth),
+                  _card(
+                    l10n.dashboardCardRevenue,
+                    formatMinor(d.revenueMinor, currency: currency),
+                    Icons.payments,
+                    tileWidth,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
           Card(
@@ -94,8 +107,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
   }
 
-  Widget _card(String t, String v, IconData i) => SizedBox(
-    width: 220,
+  Widget _card(String t, String v, IconData i, double width) => SizedBox(
+    width: width,
     child: Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -103,18 +116,20 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           children: [
             CircleAvatar(child: Icon(i)),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t),
-                Text(
-                  v,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t),
+                  Text(
+                    v,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
