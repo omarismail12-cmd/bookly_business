@@ -32,6 +32,12 @@ Future<OrganizationMembership?> fetchActiveMembership() async {
       )
       .eq('user_id', uid)
       .eq('status', 'active')
+      // Deterministic pick for accounts with multiple active memberships —
+      // oldest first, matching seed_demo_data_for_current_user()'s own
+      // `order by created_at limit 1` convention for "the" org. Without an
+      // explicit order, Postgres/PostgREST give no ordering guarantee, so
+      // which org this resolved to was previously undefined per call.
+      .order('created_at')
       .limit(1);
   if (rows.isEmpty) return null;
   final row = Map<String, dynamic>.from(rows.first);
