@@ -4,6 +4,7 @@ import '../../../core/localization/gen/app_localizations.dart';
 import '../../../core/security/org_context.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/formatters/currency.dart';
+import '../../../shared/widgets/async_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../reports/data/reports_repository.dart';
 import '../../reports/domain/report_dashboard.dart';
@@ -17,6 +18,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   ReportDashboard? data;
   bool loading = true;
+  Object? error;
   String currency = 'USD';
   @override
   void initState() {
@@ -25,20 +27,33 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Future<void> load() async {
-    final org = await ref.read(activeOrganizationProvider.future);
-    if (org == null) return;
-    currency = await ref.read(activeCurrencyProvider.future);
-    final now = DateTime.now();
-    final d = await ref.read(reportsRepositoryProvider).dashboard(
-      organizationId: org,
-      from: DateTime(now.year, now.month, now.day),
-      to: DateTime(now.year, now.month, now.day + 1),
-    );
-    if (mounted) {
-      setState(() {
-        data = d;
-        loading = false;
-      });
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final org = await ref.read(activeOrganizationProvider.future);
+      if (org == null) throw Exception('No active business found.');
+      currency = await ref.read(activeCurrencyProvider.future);
+      final now = DateTime.now();
+      final d = await ref.read(reportsRepositoryProvider).dashboard(
+        organizationId: org,
+        from: DateTime(now.year, now.month, now.day),
+        to: DateTime(now.year, now.month, now.day + 1),
+      );
+      if (mounted) {
+        setState(() {
+          data = d;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          error = e;
+          loading = false;
+        });
+      }
     }
   }
 
@@ -55,6 +70,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           SkeletonCard(leadingCircle: false, height: 76),
         ],
       );
+    }
+    if (error != null) {
+      return AsyncErrorView(error: error!, onRetry: load);
     }
     final d = data!;
     final l10n = AppLocalizations.of(c);
