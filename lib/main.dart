@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/app.dart';
 import 'core/analytics/firebase_crash_reporting.dart';
@@ -13,6 +14,18 @@ Future<void> main() async {
   await runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // Without this, go_router's web URL bar ignores context.push()/
+      // pushReplacement()/replace() entirely — it keeps showing the base
+      // route's URL while the Navigator displays the pushed page (verified
+      // against go_router 17.5.0's own source: parser.dart's
+      // restoreRouteInformation only reflects the pushed location when this
+      // flag is set; router.dart defaults it to false "for backward
+      // compatibility"). Every push() in this app targets a standalone,
+      // independently deep-linkable top-level GoRoute (/login,
+      // /customer/login, /book/:slug), so the tradeoff the flag's own
+      // doc warns about — the pushed URL not being deeplink-able — doesn't
+      // apply here.
+      GoRouter.optionURLReflectsImperativeAPIs = true;
       // Safe no-op until a real Firebase project is configured for this
       // platform — see FirebaseCrashReporting's class doc.
       await crashReporting.initialize();

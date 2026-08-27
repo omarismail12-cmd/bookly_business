@@ -253,6 +253,7 @@
   "signupTagline": "Manage your business with Bookly.",
   "loginCustomerPrompt": "Are you a customer? Book an appointment here",
   "customerPortalBusinessPrompt": "Are you a business? Sign in here",
+  "customerPortalNotACustomer": "This account isn't set up as a customer. Sign in as a business below instead.",
   "authForgotPasswordLink": "Forgot password?",
   "authForgotPasswordTitle": "Reset your password",
   "authForgotPasswordInstructions": "Enter your email and we'll send you a link to reset your password.",

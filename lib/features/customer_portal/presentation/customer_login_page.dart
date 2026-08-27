@@ -41,10 +41,31 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
     setState(() => _loading = true);
     final l10n = AppLocalizations.of(context);
     try {
-      await _auth.signIn(
+      final response = await _auth.signIn(
         email: _email.text.trim(),
         password: _password.text,
       );
+      final userId = response.user?.id;
+      if (userId != null) {
+        final rows = await Supabase.instance.client
+            .from('customers')
+            .select('id')
+            .eq('profile_id', userId)
+            .isFilter('deleted_at', null)
+            .limit(1);
+        if (rows.isEmpty) {
+          await _auth.signOut();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.customerPortalNotACustomer),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+          return;
+        }
+      }
       if (mounted) context.go('/customer');
     } on AuthException catch (e) {
       if (!mounted) return;

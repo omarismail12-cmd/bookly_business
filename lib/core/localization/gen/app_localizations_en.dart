@@ -720,6 +720,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customerPortalBusinessPrompt => 'Are you a business? Sign in here';
 
   @override
+  String get customerPortalNotACustomer =>
+      'This account isn\'t set up as a customer. Sign in as a business below instead.';
+
+  @override
   String get authForgotPasswordLink => 'Forgot password?';
 
   @override

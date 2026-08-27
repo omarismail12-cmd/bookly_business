@@ -731,6 +731,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'هل أنت صاحب عمل؟ سجّل الدخول من هنا';
 
   @override
+  String get customerPortalNotACustomer =>
+      'هذا الحساب غير مسجّل كحساب عميل. سجّل الدخول كصاحب عمل من الأسفل بدلاً من ذلك.';
+
+  @override
   String get authForgotPasswordLink => 'نسيت كلمة المرور؟';
 
   @override

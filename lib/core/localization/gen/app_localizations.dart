@@ -1364,6 +1364,12 @@ abstract class AppLocalizations {
   /// **'Are you a business? Sign in here'**
   String get customerPortalBusinessPrompt;
 
+  /// No description provided for @customerPortalNotACustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'This account isn\'t set up as a customer. Sign in as a business below instead.'**
+  String get customerPortalNotACustomer;
+
   /// No description provided for @authForgotPasswordLink.
   ///
   /// In en, this message translates to:
