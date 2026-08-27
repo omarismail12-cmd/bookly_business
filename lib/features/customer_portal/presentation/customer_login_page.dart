@@ -47,13 +47,23 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
       );
       final userId = response.user?.id;
       if (userId != null) {
+        // A `customers` row only exists once this profile has actually
+        // booked with a business — a brand-new, genuine customer account
+        // legitimately has none yet, so that can't be the signal for
+        // "is this a business account". organization_members is: business
+        // accounts get a row there at org-creation time
+        // (create_organization_for_current_user), and a pure customer
+        // profile never does. Verified live against real signup/login
+        // flows before writing this: a fresh /customer/signup account has
+        // zero organization_members rows (correctly not blocked); an
+        // owner account has one with role='owner' (correctly blocked).
         final rows = await Supabase.instance.client
-            .from('customers')
+            .from('organization_members')
             .select('id')
-            .eq('profile_id', userId)
-            .isFilter('deleted_at', null)
+            .eq('user_id', userId)
+            .eq('status', 'active')
             .limit(1);
-        if (rows.isEmpty) {
+        if (rows.isNotEmpty) {
           await _auth.signOut();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
