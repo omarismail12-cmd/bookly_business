@@ -14,9 +14,11 @@ import 'staff_appointment_detail_page.dart';
 
 /// The staff member's own landing view: today's appointments only, with
 /// large touch targets and one-tap status advances (check-in / start
-/// service / complete). This is the default tab for AppRole.staff in
-/// BusinessShell — the full Calendar is still reachable from the nav rail
-/// for anyone who wants the admin view.
+/// service / complete). This is the default (and, per Permission.
+/// manageCalendar, only) tab for AppRole.staff in BusinessShell — the
+/// full org Calendar is no longer reachable for staff, matching
+/// appointments_select RLS (0042_staff_scoping_hardening.sql), which
+/// scopes a staff member's read access to their own appointments only.
 class StaffTodayPage extends ConsumerStatefulWidget {
   const StaffTodayPage({super.key});
 

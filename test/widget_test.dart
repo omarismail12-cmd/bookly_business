@@ -112,7 +112,7 @@ void main() {
       expect(Permission.takePayments.allowedFor(AppRole.staff), isFalse);
     });
 
-    test('dashboard and calendar are visible to every business role', () {
+    test('dashboard is visible to every business role', () {
       const businessRoles = [
         AppRole.owner,
         AppRole.manager,
@@ -121,8 +121,14 @@ void main() {
       ];
       for (final role in businessRoles) {
         expect(Permission.viewDashboard.allowedFor(role), isTrue);
-        expect(Permission.manageCalendar.allowedFor(role), isTrue);
       }
+    });
+
+    test('only non-staff business roles can manage the full org calendar', () {
+      expect(Permission.manageCalendar.allowedFor(AppRole.owner), isTrue);
+      expect(Permission.manageCalendar.allowedFor(AppRole.manager), isTrue);
+      expect(Permission.manageCalendar.allowedFor(AppRole.receptionist), isTrue);
+      expect(Permission.manageCalendar.allowedFor(AppRole.staff), isFalse);
     });
 
     test(

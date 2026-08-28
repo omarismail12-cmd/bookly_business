@@ -220,7 +220,7 @@ class _BusinessShellState extends ConsumerState<BusinessShell> {
         l10n.navCalendar,
         Icons.calendar_month_outlined,
         const CalendarPage(),
-        (_) => true,
+        (r) => r != AppRole.staff,
       ),
       _NavItem(
         l10n.navQueue,

@@ -27,10 +27,10 @@ extension PermissionX on Permission {
     if (role == AppRole.customer) return false;
     switch (this) {
       case Permission.viewDashboard:
-      case Permission.manageCalendar:
       case Permission.manageCustomers:
         return true;
       case Permission.manageQueue:
+      case Permission.manageCalendar:
         return role != AppRole.staff;
       case Permission.manageServices:
       case Permission.manageStaff:
