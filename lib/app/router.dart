@@ -11,6 +11,7 @@ import '../features/auth/presentation/signup_page.dart';
 import '../features/customer_portal/presentation/customer_login_page.dart';
 import '../features/customer_portal/presentation/customer_shell.dart';
 import '../features/customer_portal/presentation/customer_signup_page.dart';
+import '../core/security/org_context.dart';
 import '../features/organisations/presentation/business_shell.dart';
 import '../features/appointments/presentation/booking_page.dart';
 
@@ -26,7 +27,7 @@ final appRouter = GoRouter(
   refreshListenable: GoRouterRefreshStream(
     Supabase.instance.client.auth.onAuthStateChange,
   ),
-  redirect: (_, state) {
+  redirect: (_, state) async {
     final loggedIn = Supabase.instance.client.auth.currentSession != null;
     final loc = state.matchedLocation;
     final businessAuth = loc == '/login' || loc == '/signup';
@@ -48,7 +49,20 @@ final appRouter = GoRouter(
     }
     if (passwordAuthFlow) return null;
     if (businessAuth) return '/home';
-    if (customerAuth) return '/customer';
+    if (customerRoute) {
+      // The authoritative (race-free) gate against a business account
+      // ending up in the customer portal — see hasBusinessMembership()'s
+      // doc comment for why this can't live only in CustomerLoginPage's
+      // own post-sign-in check. Applies to /customer itself too, not just
+      // /customer/login|/customer/signup: if the race already let a
+      // business account through once, this catches it on the very next
+      // redirect evaluation instead of leaving it stuck.
+      if (await hasBusinessMembership()) {
+        return '/login';
+      }
+      if (customerAuth) return '/customer';
+      return null;
+    }
     return null;
   },
   routes: [

@@ -69,3 +69,25 @@ final activeCurrencyProvider = FutureProvider<String>((ref) async {
   return (await ref.watch(activeMembershipProvider.future))?.currency ??
       'USD';
 });
+
+/// Whether the current session belongs to a business account (has any
+/// active `organization_members` row, for any org) rather than a pure
+/// customer. Used by router.dart's redirect as the race-free gate for
+/// entry into the customer portal — see its call site for why this can't
+/// live only in CustomerLoginPage's own post-sign-in check: GoTrue's
+/// signInWithPassword() broadcasts AuthChangeEvent.signedIn (which
+/// GoRouterRefreshStream reacts to, triggering an immediate redirect
+/// re-evaluation) *before* its own Future resolves, so a page-level async
+/// check after `await signIn(...)` can lose the race to the router's own
+/// redirect deciding `/customer/login` -> `/customer` first.
+Future<bool> hasBusinessMembership() async {
+  final uid = Supabase.instance.client.auth.currentUser?.id;
+  if (uid == null) return false;
+  final rows = await Supabase.instance.client
+      .from('organization_members')
+      .select('id')
+      .eq('user_id', uid)
+      .eq('status', 'active')
+      .limit(1);
+  return rows.isNotEmpty;
+}
