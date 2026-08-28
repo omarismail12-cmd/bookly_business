@@ -53,9 +53,29 @@ Future<OrganizationMembership?> fetchActiveMembership() async {
   );
 }
 
-final activeMembershipProvider = FutureProvider<OrganizationMembership?>(
-  (ref) => fetchActiveMembership(),
+/// Reactive dependency purely so [activeMembershipProvider] recomputes on
+/// every auth event (sign-in, sign-out, token refresh). Without this,
+/// activeMembershipProvider is a plain one-shot FutureProvider: once
+/// resolved for whichever account happened to read it first in this
+/// browser tab's lifetime, it caches that result — including a null/wrong
+/// org — for the rest of the tab's life, since nothing anywhere in this
+/// codebase ever calls ref.invalidate on it. BusinessShell itself doesn't
+/// hit this (it calls fetchActiveMembership() directly, not through this
+/// provider), which is exactly why its own chrome always shows the
+/// correct org while every *other* page — Dashboard included — could
+/// silently read a stale one. Confirmed live: a real owner account's
+/// report_dashboard call succeeded with the correct org id and failed
+/// with FORBIDDEN using whatever the client actually sent instead.
+final _authStateProvider = StreamProvider<AuthState>(
+  (ref) => Supabase.instance.client.auth.onAuthStateChange,
 );
+
+final activeMembershipProvider = FutureProvider<OrganizationMembership?>((
+  ref,
+) async {
+  ref.watch(_authStateProvider);
+  return fetchActiveMembership();
+});
 
 final activeOrganizationProvider = FutureProvider<String?>((ref) async {
   return (await ref.watch(activeMembershipProvider.future))?.organizationId;
