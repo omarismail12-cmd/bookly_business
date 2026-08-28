@@ -128,6 +128,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'This staff member doesn\'t offer the selected service. Please choose another.';
 
   @override
+  String get bookingReviewTitle => 'Review your booking';
+
+  @override
+  String get bookingReviewBusiness => 'Business';
+
+  @override
+  String get bookingReviewTime => 'Time';
+
+  @override
+  String get bookingReviewPrice => 'Price';
+
+  @override
+  String get bookingChangeTime => 'Change time';
+
+  @override
+  String get bookingConfirmButton => 'Confirm booking';
+
+  @override
+  String get bookingSlotsLoadFailed => 'Could not load available times.';
+
+  @override
   String get commonCancel => 'Cancel';
 
   @override

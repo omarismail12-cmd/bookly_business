@@ -326,6 +326,48 @@ abstract class AppLocalizations {
   /// **'This staff member doesn\'t offer the selected service. Please choose another.'**
   String get bookingStaffCannotPerformService;
 
+  /// No description provided for @bookingReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review your booking'**
+  String get bookingReviewTitle;
+
+  /// No description provided for @bookingReviewBusiness.
+  ///
+  /// In en, this message translates to:
+  /// **'Business'**
+  String get bookingReviewBusiness;
+
+  /// No description provided for @bookingReviewTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get bookingReviewTime;
+
+  /// No description provided for @bookingReviewPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get bookingReviewPrice;
+
+  /// No description provided for @bookingChangeTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Change time'**
+  String get bookingChangeTime;
+
+  /// No description provided for @bookingConfirmButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm booking'**
+  String get bookingConfirmButton;
+
+  /// No description provided for @bookingSlotsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load available times.'**
+  String get bookingSlotsLoadFailed;
+
   /// No description provided for @commonCancel.
   ///
   /// In en, this message translates to:

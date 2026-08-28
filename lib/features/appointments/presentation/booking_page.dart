@@ -29,6 +29,8 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   bool loading = true, loadingSlots = false, booking = false;
   String? message;
   bool messageIsError = false;
+  String? selectedSlot;
+  String? slotsErrorMessage;
   String? businessName;
   String? businessTimezone;
   String currency = 'USD';
@@ -106,6 +108,10 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   }
 
   Future<void> getSlots() async {
+    setState(() {
+      selectedSlot = null;
+      slotsErrorMessage = null;
+    });
     if (serviceId == null || staffId == null) return;
     setState(() => loadingSlots = true);
     try {
@@ -121,8 +127,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          message = _friendly(e);
-          messageIsError = true;
+          slotsErrorMessage = AppLocalizations.of(
+            context,
+          ).bookingSlotsLoadFailed;
         });
       }
     } finally {
@@ -130,8 +137,8 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     }
   }
 
-  Future<void> book(String start) async {
-    if (serviceId == null || staffId == null) return;
+  Future<void> book() async {
+    if (serviceId == null || staffId == null || selectedSlot == null) return;
     if (isPublic &&
         (name.text.trim().length < 2 ||
             (email.text.trim().isEmpty && phone.text.trim().isEmpty))) {
@@ -141,6 +148,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       });
       return;
     }
+    final start = selectedSlot!;
     setState(() => booking = true);
     try {
       final repo = ref.read(appointmentsRepositoryProvider);
@@ -186,6 +194,10 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           messageIsError = true;
         });
       }
+      final s = e.toString();
+      if (s.contains('SLOT_ALREADY_BOOKED') || s.contains('SLOT_NOT_AVAILABLE')) {
+        await getSlots();
+      }
     } finally {
       if (mounted) setState(() => booking = false);
     }
@@ -199,6 +211,35 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     final ids = serviceStaffMap[serviceId] ?? const [];
     return staff.where((s) => ids.contains(s['id'] as String)).toList();
   }
+
+  Service? get _selectedService {
+    for (final s in services) {
+      if (s.id == serviceId) return s;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? get _selectedStaffRow {
+    for (final s in staff) {
+      if (s['id'] == staffId) return s;
+    }
+    return null;
+  }
+
+  Widget _reviewRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(label, style: const TextStyle(color: Colors.grey)),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ),
+      ],
+    ),
+  );
 
   String _friendly(Object e) {
     final s = e.toString();
@@ -355,19 +396,126 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           ),
           if (loadingSlots) const LinearProgressIndicator(),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: slots.map((s) {
-              final dt = DateTime.parse(s['starts_at']).toLocal();
-              return FilledButton.tonal(
-                onPressed: booking ? null : () => book(s['starts_at']),
-                child: Text(
-                  '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
+          if (slotsErrorMessage != null)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    slotsErrorMessage!,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
                 ),
-              );
-            }).toList(),
-          ),
+                TextButton(
+                  onPressed: loadingSlots ? null : getSlots,
+                  child: Text(l10n.commonRetry),
+                ),
+              ],
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: slots.map((s) {
+                final start = s['starts_at'] as String;
+                final dt = DateTime.parse(start).toLocal();
+                final selected = selectedSlot == start;
+                final label = Text(
+                  '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
+                );
+                return selected
+                    ? FilledButton.icon(
+                        onPressed: booking
+                            ? null
+                            : () => setState(() => selectedSlot = null),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: label,
+                      )
+                    : FilledButton.tonal(
+                        onPressed: booking
+                            ? null
+                            : () => setState(() => selectedSlot = start),
+                        child: label,
+                      );
+              }).toList(),
+            ),
+          if (selectedSlot != null) ...[
+            const SizedBox(height: 20),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.bookingReviewTitle,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    if (isPublic && businessName != null)
+                      _reviewRow(l10n.bookingReviewBusiness, businessName!),
+                    if (_selectedService != null)
+                      _reviewRow(
+                        l10n.bookingService,
+                        '${_selectedService!.name} • ${formatMinor(_selectedService!.priceMinor, currency: currency)}',
+                      ),
+                    if (_selectedStaffRow != null)
+                      _reviewRow(
+                        l10n.bookingStaff,
+                        _selectedStaffRow!['display_name'] as String,
+                      ),
+                    _reviewRow(
+                      l10n.bookingDate,
+                      () {
+                        final dt = DateTime.parse(selectedSlot!).toLocal();
+                        return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+                      }(),
+                    ),
+                    _reviewRow(
+                      l10n.bookingReviewTime,
+                      () {
+                        final dt = DateTime.parse(selectedSlot!).toLocal();
+                        return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                      }(),
+                    ),
+                    if (_selectedService != null)
+                      _reviewRow(
+                        l10n.bookingReviewPrice,
+                        formatMinor(
+                          _selectedService!.priceMinor,
+                          currency: currency,
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: booking
+                                ? null
+                                : () => setState(() => selectedSlot = null),
+                            child: Text(l10n.bookingChangeTime),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: booking ? null : book,
+                            child: booking
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : Text(l10n.bookingConfirmButton),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (message != null)
             Padding(
               padding: const EdgeInsets.only(top: 20),

@@ -46,6 +46,13 @@
   },
   "bookingNoQualifiedStaff": "No staff assigned to this service yet — assign staff in Staff & Schedules.",
   "bookingStaffCannotPerformService": "This staff member doesn't offer the selected service. Please choose another.",
+  "bookingReviewTitle": "Review your booking",
+  "bookingReviewBusiness": "Business",
+  "bookingReviewTime": "Time",
+  "bookingReviewPrice": "Price",
+  "bookingChangeTime": "Change time",
+  "bookingConfirmButton": "Confirm booking",
+  "bookingSlotsLoadFailed": "Could not load available times.",
 
   "commonCancel": "Cancel",
   "commonSave": "Save",

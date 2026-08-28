@@ -128,6 +128,27 @@ class AppLocalizationsAr extends AppLocalizations {
       'هذا الموظف لا يقدّم الخدمة المختارة. يرجى اختيار موظف آخر.';
 
   @override
+  String get bookingReviewTitle => 'مراجعة الحجز';
+
+  @override
+  String get bookingReviewBusiness => 'النشاط التجاري';
+
+  @override
+  String get bookingReviewTime => 'الوقت';
+
+  @override
+  String get bookingReviewPrice => 'السعر';
+
+  @override
+  String get bookingChangeTime => 'تغيير الوقت';
+
+  @override
+  String get bookingConfirmButton => 'تأكيد الحجز';
+
+  @override
+  String get bookingSlotsLoadFailed => 'تعذّر تحميل الأوقات المتاحة.';
+
+  @override
   String get commonCancel => 'إلغاء';
 
   @override

@@ -42,6 +42,13 @@
   "bookingConfirmed": "تم تأكيد الحجز. الرقم المرجعي: {reference}",
   "bookingNoQualifiedStaff": "لم يتم تعيين أي موظف لهذه الخدمة بعد — قم بتعيين الموظفين من صفحة الموظفين والجداول.",
   "bookingStaffCannotPerformService": "هذا الموظف لا يقدّم الخدمة المختارة. يرجى اختيار موظف آخر.",
+  "bookingReviewTitle": "مراجعة الحجز",
+  "bookingReviewBusiness": "النشاط التجاري",
+  "bookingReviewTime": "الوقت",
+  "bookingReviewPrice": "السعر",
+  "bookingChangeTime": "تغيير الوقت",
+  "bookingConfirmButton": "تأكيد الحجز",
+  "bookingSlotsLoadFailed": "تعذّر تحميل الأوقات المتاحة.",
 
   "commonCancel": "إلغاء",
   "commonSave": "حفظ",
