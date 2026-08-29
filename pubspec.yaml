@@ -37,6 +37,16 @@ dependencies:
   flutter_riverpod: ^3.3.2
   go_router: ^17.5.0
   supabase_flutter: ^2.17.2
+  # Direct (not just transitive via supabase_flutter) so
+  # lib/core/security/org_membership_query.dart — the pure-Dart core the
+  # activeMembershipProvider family wraps — can import the plain,
+  # non-Flutter client type directly. That's what lets
+  # integration_test/dashboard_org_isolation_test.dart exercise the real
+  # membership-lookup query under plain `dart test` against a real Supabase
+  # project; anything pulling in package:flutter fails to even compile
+  # there (no dart:ui outside a real Flutter engine — see
+  # integration_test/test_helpers.dart's doc comment).
+  supabase: ^2.16.1
   intl: ^0.20.2
   uuid: ^4.6.0
   sqlite3: ^2.4.6
@@ -58,12 +68,18 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  # Plain (non-Flutter) Supabase client + test runner for integration_test/
-  # — see the doc comment at the top of integration_test/test_helpers.dart
-  # for why these tests can't use supabase_flutter or run under
-  # `flutter test`, and must run via `dart test integration_test` instead.
-  supabase: ^2.16.1
+  # Plain (non-Flutter) Supabase test runner for integration_test/ — see the
+  # doc comment at the top of integration_test/test_helpers.dart for why
+  # these tests can't use supabase_flutter or run under `flutter test`, and
+  # must run via `dart test integration_test` instead. (The `supabase`
+  # client package itself is a direct main dependency now, not just a dev
+  # one — see its entry above.)
   test: ^1.25.0
+  # Pure-Dart Riverpod core (no package:flutter) — lets
+  # dashboard_org_isolation_test.dart build a real ProviderContainer and
+  # exercise the same FutureProvider.autoDispose freshness contract
+  # activeMembershipProvider relies on, under plain `dart test`.
+  riverpod: ^3.3.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

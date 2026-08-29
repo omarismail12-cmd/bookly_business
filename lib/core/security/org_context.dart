@@ -1,91 +1,79 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class OrganizationMembership {
-  final String organizationId;
-  final String organizationName;
-  final String slug;
-  final String timezone;
-  final String currency;
-  final String role;
-  const OrganizationMembership({
-    required this.organizationId,
-    required this.organizationName,
-    required this.slug,
-    required this.timezone,
-    required this.currency,
-    required this.role,
-  });
-}
+import '../config/supabase_provider.dart';
+import 'org_membership_query.dart';
+
+export 'org_membership_query.dart' show OrganizationMembership;
 
 /// Single source of truth for "what is the current user's active business
 /// membership" — used both by [activeMembershipProvider] (Riverpod call
 /// sites) and directly by widgets that aren't ConsumerWidgets (e.g.
-/// BusinessShell), so the query only lives in one place.
-Future<OrganizationMembership?> fetchActiveMembership() async {
-  final uid = Supabase.instance.client.auth.currentUser?.id;
-  if (uid == null) return null;
-  final rows = await Supabase.instance.client
-      .from('organization_members')
-      .select(
-        'organization_id,role,organizations(id,name,slug,timezone,currency,status)',
-      )
-      .eq('user_id', uid)
-      .eq('status', 'active')
-      // Deterministic pick for accounts with multiple active memberships —
-      // oldest first, matching seed_demo_data_for_current_user()'s own
-      // `order by created_at limit 1` convention for "the" org. Without an
-      // explicit order, Postgres/PostgREST give no ordering guarantee, so
-      // which org this resolved to was previously undefined per call.
-      .order('created_at')
-      .limit(1);
-  if (rows.isEmpty) return null;
-  final row = Map<String, dynamic>.from(rows.first);
-  final org = Map<String, dynamic>.from(row['organizations'] as Map);
-  if ((org['status'] ?? 'active') != 'active') return null;
-  return OrganizationMembership(
-    organizationId: row['organization_id'] as String,
-    organizationName: org['name']?.toString() ?? 'Bookly Business',
-    slug: org['slug']?.toString() ?? '',
-    timezone: org['timezone']?.toString() ?? 'UTC',
-    currency: org['currency']?.toString() ?? 'USD',
-    role: row['role']?.toString() ?? 'staff',
-  );
-}
+/// BusinessShell), so the query only lives in one place. Thin wrapper
+/// around org_membership_query.dart's client-agnostic version, defaulting
+/// to the app's real Supabase.instance.client — see that file's doc
+/// comment for why the actual query logic lives there instead of here.
+Future<OrganizationMembership?> fetchActiveMembership() =>
+    fetchActiveMembershipFor(Supabase.instance.client);
 
-/// Reactive dependency purely so [activeMembershipProvider] recomputes on
-/// every auth event (sign-in, sign-out, token refresh). Without this,
-/// activeMembershipProvider is a plain one-shot FutureProvider: once
-/// resolved for whichever account happened to read it first in this
-/// browser tab's lifetime, it caches that result — including a null/wrong
-/// org — for the rest of the tab's life, since nothing anywhere in this
-/// codebase ever calls ref.invalidate on it. BusinessShell itself doesn't
-/// hit this (it calls fetchActiveMembership() directly, not through this
-/// provider), which is exactly why its own chrome always shows the
-/// correct org while every *other* page — Dashboard included — could
-/// silently read a stale one. Confirmed live: a real owner account's
-/// report_dashboard call succeeded with the correct org id and failed
-/// with FORBIDDEN using whatever the client actually sent instead.
-final _authStateProvider = StreamProvider<AuthState>(
-  (ref) => Supabase.instance.client.auth.onAuthStateChange,
-);
+/// `autoDispose` is load-bearing here, not a style choice — see the class
+/// doc below for why a plain (kept-alive) FutureProvider is unsafe for
+/// this value even with stream-based invalidation wired up.
+final activeMembershipProvider =
+    FutureProvider.autoDispose<OrganizationMembership?>((ref) {
+      return fetchActiveMembershipFor(ref.watch(supabaseProvider));
+    });
 
-final activeMembershipProvider = FutureProvider<OrganizationMembership?>((
+/// Second fix for the recurring dashboard FORBIDDEN bug (see
+/// org_context.dart git history for the first). That fix made
+/// [activeMembershipProvider] a *reactive* FutureProvider — it re-ran
+/// fetchActiveMembership() whenever Supabase's auth-change stream fired,
+/// instead of caching one account's result forever. That closed the
+/// original repro (switch accounts, revisit a page, see the old
+/// account's org) but not the underlying bug class: reactive-via-watch
+/// only guarantees the *next* read after invalidation is fresh, not that
+/// invalidation has finished by the time a read triggered by the very
+/// same auth event happens to run. Confirmed live: sign up as account A,
+/// seed a demo org, sign out, sign in as account B — GoRouter's own
+/// listener on that same auth-change stream fires fast enough to
+/// navigate to Dashboard and mount it before this provider's
+/// ref.watch(_authStateProvider) dependency had actually recomputed, so
+/// Dashboard's first load() read A's still-cached org and sent it under
+/// B's now-valid JWT. B's owner role on their own (different) org made
+/// this fail loud (report_dashboard's has_org_role check rejected the
+/// mismatch — no data leaked, just a FORBIDDEN) rather than silently
+/// showing B account A's data, but it's still broken.
+///
+/// A kept-alive provider being *eventually* invalidated can never close
+/// this: there is always some event ordering where a consumer reads it
+/// between "auth changed" and "invalidation observed". `autoDispose`
+/// sidesteps the race entirely instead of trying to win it: every call
+/// site below reads this via `ref.read(...future)`, a one-off read that
+/// holds no lasting subscription, so the provider has zero listeners the
+/// instant that read completes and Riverpod tears it down. The *next*
+/// read anywhere — regardless of whether an auth event fired, and
+/// regardless of whether any invalidation logic ran — has no cached
+/// instance to reuse and must call fetchActiveMembership() fresh. This
+/// is exactly the pattern BusinessShell's own chrome already used (calls
+/// fetchActiveMembership() directly, never through a cached provider),
+/// which is exactly why BusinessShell's chrome never showed this bug
+/// while every page reading these providers could. Regression-tested
+/// against the real backend by
+/// integration_test/dashboard_org_isolation_test.dart (see its doc
+/// comment for why that test targets org_membership_query.dart's
+/// fetchActiveMembershipFor() + a locally-built equivalent provider
+/// rather than this file directly).
+final activeOrganizationProvider = FutureProvider.autoDispose<String?>((
   ref,
 ) async {
-  ref.watch(_authStateProvider);
-  return fetchActiveMembership();
-});
-
-final activeOrganizationProvider = FutureProvider<String?>((ref) async {
   return (await ref.watch(activeMembershipProvider.future))?.organizationId;
 });
 
-final activeRoleProvider = FutureProvider<String?>((ref) async {
+final activeRoleProvider = FutureProvider.autoDispose<String?>((ref) async {
   return (await ref.watch(activeMembershipProvider.future))?.role;
 });
 
-final activeCurrencyProvider = FutureProvider<String>((ref) async {
+final activeCurrencyProvider = FutureProvider.autoDispose<String>((ref) async {
   return (await ref.watch(activeMembershipProvider.future))?.currency ??
       'USD';
 });
